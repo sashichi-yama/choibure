@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>ちょいブレ</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<meta name="theme-color" content="#f7f9fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1d2530" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ちょいブレ">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* Layout: one-screen app. Top bar, scrollable dotted board with free notes and groups, input bar pinned at the bottom. */
+:root {
+  --board: #e8edf2;
+  --dot: #c3cdd8;
+  --chrome: #f7f9fb;
+  --line: #d3dbe4;
+  --ink: #1e2935;
+  --muted: #5c6a79;
+  --accent: #2357a8;
+  --accent-ink: #ffffff;
+  --danger: #c8323c;
+  --group-bg: rgba(255,255,255,.62);
+  --group-line: rgba(35,87,168,.18);
+  --target: rgba(35,87,168,.35);
+  --note-ink: #232a31;
+  --n-y: #fff0a3; --n-p: #ffd2de; --n-m: #c8efd7; --n-s: #cde4ff; --n-l: #e2d6ff;
+  --shadow: 0 1px 2px rgba(20,35,55,.14), 0 2px 6px rgba(20,35,55,.08);
+  --lift: 0 14px 28px rgba(20,35,55,.22), 0 4px 8px rgba(20,35,55,.12);
+  --f-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --f-body: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --board: #161c24; --dot: #2a3441; --chrome: #1d2530; --line: #2d3846;
+  --ink: #e7edf4; --muted: #95a3b3; --accent: #7aa7ff; --accent-ink: #0d1626; --danger: #ff6b74;
+  --group-bg: rgba(255,255,255,.06); --group-line: rgba(122,167,255,.25); --target: rgba(122,167,255,.45);
+  --n-y: #efdc7e; --n-p: #f0b4c4; --n-m: #a6dcbc; --n-s: #accdf2; --n-l: #c9b8f2;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.3);
+  --lift: 0 16px 30px rgba(0,0,0,.5), 0 4px 10px rgba(0,0,0,.35);
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --board: #161c24; --dot: #2a3441; --chrome: #1d2530; --line: #2d3846;
+  --ink: #e7edf4; --muted: #95a3b3; --accent: #7aa7ff; --accent-ink: #0d1626; --danger: #ff6b74;
+  --group-bg: rgba(255,255,255,.06); --group-line: rgba(122,167,255,.25); --target: rgba(122,167,255,.45);
+  --n-y: #efdc7e; --n-p: #f0b4c4; --n-m: #a6dcbc; --n-s: #accdf2; --n-l: #c9b8f2;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.3);
+  --lift: 0 16px 30px rgba(0,0,0,.5), 0 4px 10px rgba(0,0,0,.35);
+  color-scheme: dark; }
+
+html { box-sizing: border-box; height: 100%; }
+body { height: 100%; }
+body { background: var(--board); color: var(--ink); font-family: var(--f-body); overflow: hidden; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#app { height: 100%; display: flex; flex-direction: column; }
+header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--chrome); border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
+#boardBtn { flex: 1; min-width: 0; border: 0; background: transparent; padding: 2px 0; text-align: left; display: flex; flex-direction: column; }
+#boardName { display: flex; align-items: center; gap: 4px; font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: .02em; min-width: 0; }
+#boardName span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#boardName svg { flex: none; color: var(--muted); }
+#count { font-family: var(--f-body); font-weight: 400; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 14px; }
+#topic { display: flex; align-items: baseline; gap: 8px; width: 100%; box-sizing: border-box; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: var(--chrome); padding: 8px 16px 10px; }
+#topic .tl { flex: none; font-size: 11px; font-weight: 700; color: var(--accent); border: 1px solid currentColor; border-radius: 6px; padding: 1px 6px; }
+#topic .tt { flex: 1; min-width: 0; font: 700 15px/1.5 var(--f-display); overflow-wrap: anywhere; }
+#topic .tt.empty { color: var(--muted); font-weight: 500; }
+.board-list { display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow: auto; margin: 0 -4px; padding: 0 4px; }
+.board-list .btn { text-align: left; padding: 11px 14px; font-weight: 600; }
+.board-list .btn[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.board-list .btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 3px; overflow-wrap: anywhere; }
+.board-list .btn .meta { font-variant-numeric: tabular-nums; }
+#sheet label.fl { font-size: 12px; color: var(--muted); margin-bottom: -6px; }
+/* overview: whole board scaled to fit one screen (for screenshots) */
+#app.overview .bar { display: none; }
+#app.overview #scroller { overflow: hidden; cursor: zoom-out; background-image: radial-gradient(var(--dot) 1.2px, transparent 1.4px); background-size: 22px 22px; }
+#app.overview #board { transform-origin: 0 0; background: none; }
+#app.overview #board > #hint, #app.overview #board > .empty-msg { display: none; }
+#app.overview #fitBtn { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+#app.overview .note, #app.overview .gh { cursor: zoom-out; }
+.ib { border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 7px 11px; font-size: 13px; }
+.ib:disabled { opacity: .35; cursor: default; }
+
+#scroller { flex: 1; overflow: auto; position: relative; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+#board { position: relative; min-width: 100%; min-height: 100%;
+  background-image: radial-gradient(var(--dot) 1.2px, transparent 1.4px); background-size: 22px 22px; background-position: 11px 11px; }
+
+.note { position: absolute; width: 136px; min-height: 64px; padding: 10px 11px 12px; box-sizing: border-box; border-radius: 4px 4px 14px 4px;
+  color: var(--note-ink); font-family: var(--f-display); font-weight: 500; font-size: 15px; line-height: 1.45; word-break: break-word; white-space: pre-wrap;
+  box-shadow: var(--shadow); touch-action: none; cursor: grab; }
+.c-y { background: var(--n-y); } .c-p { background: var(--n-p); } .c-m { background: var(--n-m); } .c-s { background: var(--n-s); } .c-l { background: var(--n-l); }
+
+.group { position: absolute; width: 184px; box-sizing: border-box; border-radius: 16px; background: var(--group-bg); border: 1.5px solid var(--group-line);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); padding: 4px 6px 8px; transition: box-shadow .15s, border-color .15s; }
+.gh { display: flex; align-items: center; gap: 6px; padding: 6px 4px 8px 8px; touch-action: none; cursor: grab; }
+.gt { flex: 1; min-width: 0; font-family: var(--f-display); font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
+.gt.empty { color: var(--muted); font-weight: 500; }
+.gc { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.gx { border: 0; background: transparent; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); margin: -4px -2px -4px 0; }
+.gx svg { transition: rotate .2s; }
+.group.collapsed .gx svg { rotate: -90deg; }
+.gb { display: flex; flex-direction: column; gap: 6px; }
+.gb .note { position: relative; width: 100%; min-height: 0; font-size: 14px; padding: 8px 10px 9px; left: auto; top: auto; }
+.group.collapsed .gb { display: none; }
+.group.collapsed { padding-bottom: 4px; box-shadow: 4px 4px 0 -1px var(--group-bg), 4px 4px 0 0 var(--group-line), 8px 8px 0 -1px var(--group-bg), 8px 8px 0 0 var(--group-line); }
+.gb .slot { height: 6px; margin: -3px 0; border-radius: 3px; background: var(--accent); }
+
+.target { outline: 3px solid var(--target); outline-offset: 3px; }
+.note.target { animation: breathe .6s ease-in-out infinite alternate; }
+@keyframes breathe { to { scale: 1.05; } }
+
+#layer { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+#layer > * { position: absolute; left: 0; top: 0; margin: 0; }
+.lifted { scale: 1.06; box-shadow: var(--lift); cursor: grabbing;
+  transition: scale .22s cubic-bezier(.3,1.7,.5,1), rotate .12s ease-out, box-shadow .2s, opacity .15s; }
+.lifted.doomed { opacity: .55; scale: .82; }
+
+.land { animation: land .42s cubic-bezier(.3,1.5,.5,1); }
+@keyframes land { 0% { scale: 1.07; } 45% { scale: .95; } 75% { scale: 1.02; } 100% { scale: 1; } }
+.gulp { animation: gulp .45s cubic-bezier(.3,1.6,.5,1); }
+@keyframes gulp { 0% { scale: 1; } 30% { scale: 1.06; } 60% { scale: .98; } 100% { scale: 1; } }
+.pop { animation: pop .38s cubic-bezier(.3,1.7,.5,1); }
+@keyframes pop { 0% { scale: .4; opacity: 0; } 100% { scale: 1; opacity: 1; } }
+
+#trash { position: fixed; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom, 0px)); translate: -50% 140px; z-index: 25;
+  display: flex; align-items: center; gap: 6px; padding: 12px 20px; border-radius: 999px; background: var(--chrome); color: var(--danger);
+  border: 1.5px dashed var(--danger); font-size: 14px; font-weight: 600; transition: translate .25s cubic-bezier(.3,1.5,.5,1), scale .15s, background .15s; }
+#trash.show { translate: -50% 0; }
+#trash.hot { scale: 1.15; background: var(--danger); color: var(--chrome); border-style: solid; }
+
+.bar { display: flex; gap: 8px; padding: 10px 16px; background: var(--chrome); border-top: 1px solid var(--line); }
+.bar input { flex: 1; min-width: 0; font: 16px var(--f-display); font-weight: 500; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--board); color: var(--ink); -webkit-user-select: text; user-select: text; }
+.bar input::placeholder { color: var(--muted); }
+.add { border: 0; border-radius: 12px; padding: 0 18px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 15px; }
+
+#hint { position: absolute; left: 16px; top: 12px; z-index: 5; box-sizing: border-box; width: min(420px, calc(100vw - 32px)); display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px; border-radius: 12px; background: var(--chrome); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 13px; line-height: 1.6; color: var(--muted); }
+#hint b { color: var(--ink); }
+#hint button { border: 0; background: transparent; font-size: 13px; color: var(--accent); flex: none; padding: 2px 4px; }
+.empty-msg { position: absolute; left: 16px; right: 16px; top: 38%; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.8; pointer-events: none; }
+
+#toast { position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); translate: -50% -20px; opacity: 0; z-index: 40; pointer-events: none;
+  background: var(--ink); color: var(--board); padding: 8px 14px; border-radius: 999px; font-size: 13px; transition: opacity .2s, translate .25s cubic-bezier(.3,1.5,.5,1); }
+#toast.show { opacity: 1; translate: -50% 0; }
+
+#scrim { position: fixed; inset: 0; background: rgba(10,18,28,.38); z-index: 50; opacity: 0; transition: opacity .2s; }
+#scrim.show { opacity: 1; }
+#sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 51; background: var(--chrome); border-radius: 18px 18px 0 0; box-shadow: 0 -8px 30px rgba(0,0,0,.18);
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 560px; margin: 0 auto; translate: 0 105%; transition: translate .3s cubic-bezier(.25,1.2,.4,1);
+  display: flex; flex-direction: column; gap: 12px; -webkit-user-select: text; user-select: text; }
+#sheet.show { translate: 0 0; }
+#sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 2px; }
+#sheet h2 { margin: 0; font: 700 16px var(--f-display); }
+#sheet textarea, #sheet input[type=text] { width: 100%; box-sizing: border-box; font: 500 16px/1.5 var(--f-display); padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--board); color: var(--ink); resize: none; }
+#sheet textarea.md { font: 13px/1.6 ui-monospace, "SF Mono", Menlo, monospace; height: 40vh; }
+.swatches { display: flex; gap: 10px; }
+.sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; box-shadow: var(--shadow); }
+.sw[aria-pressed="true"] { border-color: var(--ink); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { flex: 1; min-width: 96px; border: 1px solid var(--line); background: var(--board); border-radius: 12px; padding: 12px 10px; font-size: 14px; font-weight: 600; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--danger); }
+.btn.danger.armed { background: var(--danger); color: var(--chrome); border-color: var(--danger); }
+.menu-list { display: flex; flex-direction: column; gap: 8px; }
+.menu-list .btn { text-align: left; padding: 13px 14px; }
+.menu-list .btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+#hap { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<div id="app">
+  <header>
+    <h1><button type="button" id="boardBtn" aria-label="ボード一覧を開く"><span id="boardName"><span id="boardNameText"></span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5l4 4 4-4"/></svg></span><small id="count"></small></button></h1>
+    <button class="ib" id="fitBtn" aria-label="全体を1画面に収める">全体</button>
+    <button class="ib" id="undo" disabled aria-label="元に戻す">戻す</button>
+    <button class="ib" id="menuBtn">メニュー</button>
+  </header>
+  <button type="button" id="topic"><span class="tl">お題</span><span class="tt" id="topicText"></span></button>
+  <div id="scroller">
+    <div id="board"></div>
+  </div>
+  <form class="bar" id="addForm" autocomplete="off">
+    <input id="newText" type="text" enterkeyhint="enter" placeholder="思いついたことを書いて Enter" maxlength="200">
+    <button class="add" type="submit">追加</button>
+  </form>
+</div>
+<div id="layer"></div>
+<div id="trash" aria-hidden="true">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.8 9.5h6.4L12 4"/></svg>ここに離すと削除
+</div>
+<div id="toast" role="status"></div>
+<div id="scrim" hidden></div>
+<div id="sheet" role="dialog" aria-modal="true" hidden></div>
+<input type="checkbox" switch id="hap" tabindex="-1" aria-hidden="true"><label for="hap" id="hapLabel" hidden></label>
+
+<script>
+(() => {
+const KEY = 'yosefusen.v2', OLD_KEY = 'yosefusen.v1';
+const COLORS = ['y', 'p', 'm', 's', 'l'];
+const COLOR_NAMES = { y: '黄', p: 'ピンク', m: 'ミント', s: '水色', l: 'ラベンダー' };
+const $ = (s) => document.querySelector(s);
+const scroller = $('#scroller'), board = $('#board'), layer = $('#layer'), trash = $('#trash');
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+/* ---------- state ---------- */
+function sample() {
+  const n = (text, color, x, y, gid = null) => ({ id: uid(), text, color, x, y, gid });
+  const g1 = uid(), g2 = uid();
+  const notes = [
+    n('ボルダリング', 'p', 0, 0, g1), n('朝ラン', 'p', 0, 0, g1), n('ヨガ', 's', 0, 0, g1),
+    n('パン作り', 'y', 0, 0, g2), n('陶芸', 'y', 0, 0, g2),
+    n('写真散歩', 'm', 216, 132), n('ウクレレ', 'l', 24, 356), n('家庭菜園', 'm', 196, 390), n('古い映画を観る', 's', 40, 496),
+  ];
+  return {
+    notes,
+    groups: [
+      { id: g1, title: '体を動かす', x: 16, y: 132, collapsed: false, order: notes.slice(0, 3).map((x) => x.id) },
+      { id: g2, title: '作る', x: 196, y: 222, collapsed: false, order: notes.slice(3, 5).map((x) => x.id) },
+    ],
+    hint: true,
+  };
+}
+const blank = () => ({ id: uid(), name: '', topic: '', notes: [], groups: [], hint: false, updated: Date.now() });
+function load() {
+  try { const r = localStorage.getItem(KEY); if (r) { const d = JSON.parse(r); if (d && d.boards && d.boards.length) return d; } } catch (e) {}
+  // migrate the single board from v1, or start with the example board
+  let first = null;
+  try { const o = localStorage.getItem(OLD_KEY); if (o) { const v = JSON.parse(o); first = { ...blank(), notes: v.notes || [], groups: v.groups || [], hint: !!v.hint }; } } catch (e) {}
+  if (!first) first = { ...blank(), ...sample(), topic: '新しく始めたい趣味は？' };
+  return { boards: [first], current: first.id, sound: true, lastColor: 'y' };
+}
+const DB = load();
+let S = DB.boards.find((b) => b.id === DB.current) || DB.boards[0];
+let hist = [];
+function save() { DB.current = S.id; try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {} }
+function commit(fn) {
+  hist.push(JSON.stringify(S)); if (hist.length > 50) hist.shift();
+  fn(); cleanup(); S.updated = Date.now(); save(); render(); $('#undo').disabled = false;
+}
+function replaceS(obj) { const i = DB.boards.findIndex((b) => b.id === S.id); DB.boards[i] = obj; S = obj; }
+const boardLabel = (b) => b.name || b.topic || '無題のボード';
+function switchBoard(id) {
+  const b = DB.boards.find((x) => x.id === id); if (!b) return;
+  exitOverview(); S = b; hist = []; $('#undo').disabled = true; save(); render(); scroller.scrollTo(0, 0);
+}
+function cleanup() {
+  const ids = new Set(S.notes.map((n) => n.id));
+  S.groups.forEach((g) => { g.order = g.order.filter((id) => ids.has(id)); });
+  S.groups = S.groups.filter((g) => g.order.length > 0);
+  const gids = new Set(S.groups.map((g) => g.id));
+  S.notes.forEach((n) => { if (n.gid && !gids.has(n.gid)) n.gid = null; });
+}
+const note = (id) => S.notes.find((n) => n.id === id);
+const group = (id) => S.groups.find((g) => g.id === id);
+
+/* ---------- feel: haptics + sound ---------- */
+const hapLabel = $('#hapLabel');
+function buzz(ms = 10) {
+  try { if (navigator.vibrate) { navigator.vibrate(ms); return; } hapLabel.click(); } catch (e) {}
+}
+let ac = null;
+function tone(f1, f2, dur = 0.09, vol = 0.06, type = 'sine') {
+  if (!DB.sound) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
+    const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+  } catch (e) {}
+}
+const fx = {
+  lift() { buzz(8); tone(520, 780, 0.07, 0.04); },
+  hover() { buzz(5); tone(900, 1000, 0.03, 0.025, 'triangle'); },
+  drop() { buzz(10); tone(340, 220, 0.08, 0.05); },
+  join() { buzz(18); tone(440, 660, 0.06, 0.05); setTimeout(() => tone(660, 990, 0.09, 0.05), 60); },
+  add() { buzz(6); tone(700, 1050, 0.06, 0.04, 'triangle'); },
+  trash() { buzz(25); tone(260, 90, 0.16, 0.06, 'triangle'); },
+};
+
+/* ---------- render ---------- */
+const chevron = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5l4 4 4-4"/></svg>';
+function noteEl(n, free) {
+  const el = document.createElement('div');
+  el.className = 'note c-' + n.color + (free ? ' free' : '');
+  el.dataset.id = n.id; el.dataset.kind = 'note';
+  el.textContent = n.text;
+  if (free) { el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; }
+  return el;
+}
+function render() {
+  board.textContent = '';
+  if (S.hint) {
+    const h = document.createElement('div'); h.id = 'hint';
+    h.innerHTML = '<div>例のボードです。<b>付箋を別の付箋に重ねる</b>とグループに、<b>グループの外へ出す</b>と解除。メニューから空にして始められます。</div><button type="button" data-act="hint">閉じる</button>';
+    board.appendChild(h);
+  }
+  for (const g of S.groups) {
+    const el = document.createElement('div');
+    el.className = 'group' + (g.collapsed ? ' collapsed' : '');
+    el.dataset.id = g.id; el.dataset.kind = 'group';
+    el.style.left = g.x + 'px'; el.style.top = g.y + 'px';
+    const head = document.createElement('div'); head.className = 'gh';
+    const t = document.createElement('span'); t.className = 'gt' + (g.title ? '' : ' empty'); t.textContent = g.title || '名前をつける';
+    const c = document.createElement('span'); c.className = 'gc'; c.textContent = g.order.length + '枚';
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'gx'; b.dataset.act = 'collapse'; b.dataset.id = g.id;
+    b.setAttribute('aria-label', g.collapsed ? '広げる' : '畳む'); b.innerHTML = chevron;
+    head.append(t, c, b);
+    const body = document.createElement('div'); body.className = 'gb';
+    g.order.forEach((id) => { const n = note(id); if (n) body.appendChild(noteEl(n, false)); });
+    el.append(head, body);
+    board.appendChild(el);
+  }
+  for (const n of S.notes) if (!n.gid) board.appendChild(noteEl(n, true));
+  if (!S.notes.length) {
+    const m = document.createElement('div'); m.className = 'empty-msg';
+    m.innerHTML = 'まだ付箋がありません。<br>下の欄に書いて Enter で追加します。';
+    board.appendChild(m);
+  }
+  sizeBoard();
+  $('#count').textContent = S.notes.length ? S.notes.length + '枚・' + S.groups.length + 'グループ' : '付箋なし';
+  $('#boardNameText').textContent = boardLabel(S);
+  const tt = $('#topicText'); tt.textContent = S.topic || 'お題を書く（タップ）'; tt.classList.toggle('empty', !S.topic);
+  document.title = boardLabel(S) + ' - ちょいブレ';
+  if (ovOn) requestAnimationFrame(fitOverview);
+}
+function sizeBoard() {
+  let w = 0, h = 0;
+  board.querySelectorAll('.group, .note.free').forEach((el) => {
+    w = Math.max(w, el.offsetLeft + el.offsetWidth); h = Math.max(h, el.offsetTop + el.offsetHeight);
+  });
+  board.style.width = Math.max(scroller.clientWidth, w + 240) + 'px';
+  board.style.height = Math.max(scroller.clientHeight, h + 320) + 'px';
+}
+function flash(id, cls) {
+  const el = board.querySelector(`[data-id="${id}"]`);
+  if (!el) return null;
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+  el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+  return el;
+}
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+/* ---------- adding ---------- */
+function boardRects() {
+  // offset* ignores the pop-in animation's scale, so freshly added notes count at full size
+  return [...board.querySelectorAll('.group, .note.free')].map((el) => ({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }));
+}
+function freeSpot() {
+  const rects = boardRects();
+  const L = scroller.scrollLeft, T = scroller.scrollTop, W = scroller.clientWidth, H = scroller.clientHeight;
+  const hits = (x, y) => rects.some((r) => x < r.x + r.w + 8 && x + 136 + 8 > r.x && y < r.y + r.h + 8 && y + 70 + 8 > r.y);
+  for (let y = T + 16; y + 70 < T + H; y += 22) {
+    for (let x = L + 16; x + 136 <= L + W - 8; x += 22) if (!hits(x, y)) return { x, y };
+  }
+  // screen is full: take the first free spot further down and scroll to it
+  for (let y = 16; y < 6000; y += 22) {
+    for (let x = 16; x + 136 <= Math.max(W, 300) - 8; x += 22) if (!hits(x, y)) { scroller.scrollTo({ top: Math.max(0, y - H + 120), behavior: 'smooth' }); return { x, y }; }
+  }
+  return { x: L + 16 + Math.random() * 40, y: T + 16 + Math.random() * 40 };
+}
+$('#addForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const inp = $('#newText'); const text = inp.value.trim();
+  if (!text) return;
+  exitOverview();
+  const p = freeSpot(); const id = uid();
+  const color = DB.lastColor || 'y';
+  commit(() => { S.notes.push({ id, text, color, x: Math.round(p.x), y: Math.round(p.y), gid: null }); });
+  inp.value = ''; inp.focus();
+  flash(id, 'pop'); fx.add();
+});
+
+/* ---------- drag ---------- */
+let P = null; // pending/active pointer interaction
+board.addEventListener('pointerdown', (e) => {
+  if (e.button > 0 || P) return;
+  if (ovOn) return;
+  if (e.target.closest('[data-act]')) return;
+  const head = e.target.closest('.gh');
+  const nEl = head ? null : e.target.closest('.note');
+  const el = head ? head.closest('.group') : nEl;
+  if (!el) return;
+  P = { el, kind: el.dataset.kind, id: el.dataset.id, sx: e.clientX, sy: e.clientY, cx: e.clientX, cy: e.clientY, pid: e.pointerId, drag: false, tgt: null, tilt: 0 };
+});
+window.addEventListener('pointermove', (e) => {
+  if (!P || e.pointerId !== P.pid) return;
+  const dx = e.clientX - P.cx; P.cx = e.clientX; P.cy = e.clientY;
+  if (!P.drag) {
+    if (Math.hypot(P.cx - P.sx, P.cy - P.sy) < 7) return;
+    startDrag();
+  }
+  e.preventDefault();
+  P.tilt = Math.max(-7, Math.min(7, P.tilt * 0.7 + dx * 0.6));
+  place(); detect();
+}, { passive: false });
+window.addEventListener('pointerup', end);
+window.addEventListener('pointercancel', end);
+
+function startDrag() {
+  const r = P.el.getBoundingClientRect();
+  P.ox = P.sx - r.left; P.oy = P.sy - r.top; P.drag = true;
+  P.from = P.kind === 'note' ? note(P.id).gid : null;
+  P.el.style.width = r.width + 'px';
+  P.el.style.left = '0px'; P.el.style.top = '0px';
+  P.el.style.translate = `${r.left}px ${r.top}px`;
+  layer.appendChild(P.el);
+  void P.el.offsetWidth;
+  P.el.classList.add('lifted');
+  trash.classList.add('show');
+  fx.lift(); autoScroll();
+}
+function place() {
+  P.x = P.cx - P.ox; P.y = P.cy - P.oy;
+  P.el.style.translate = `${P.x}px ${P.y}px`;
+  P.el.style.rotate = P.tilt.toFixed(1) + 'deg';
+}
+const inside = (r, x, y) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+function detect() {
+  let tgt = null;
+  const tr = trash.getBoundingClientRect();
+  if (inside({ left: tr.left - 20, right: tr.right + 20, top: tr.top - 24, bottom: tr.bottom + 16 }, P.cx, P.cy)) tgt = { kind: 'trash' };
+  else {
+    const els = [...board.querySelectorAll('.group, .note.free')].reverse();
+    for (const el of els) {
+      if (inside(el.getBoundingClientRect(), P.cx, P.cy)) { tgt = { kind: el.dataset.kind, id: el.dataset.id, el }; break; }
+    }
+    if (tgt && tgt.kind === 'group') {
+      const kids = [...tgt.el.querySelectorAll('.gb > .note')];
+      let idx = kids.length;
+      for (let i = 0; i < kids.length; i++) { const r = kids[i].getBoundingClientRect(); if (P.cy < r.top + r.height / 2) { idx = i; break; } }
+      tgt.idx = P.kind === 'note' && !tgt.el.classList.contains('collapsed') ? idx : null;
+    }
+  }
+  const key = (t) => t ? t.kind + (t.id || '') + (t.idx ?? '') : '';
+  if (key(tgt) === key(P.tgt)) return;
+  const sameEl = tgt && P.tgt && tgt.el && tgt.el === P.tgt.el;
+  if (P.tgt && P.tgt.el) P.tgt.el.classList.remove('target');
+  board.querySelectorAll('.slot').forEach((s) => s.remove());
+  trash.classList.toggle('hot', !!tgt && tgt.kind === 'trash');
+  P.el.classList.toggle('doomed', !!tgt && tgt.kind === 'trash');
+  if (tgt && tgt.el) {
+    tgt.el.classList.add('target');
+    if (tgt.idx != null) {
+      const s = document.createElement('div'); s.className = 'slot';
+      const kids = tgt.el.querySelectorAll('.gb > .note');
+      tgt.el.querySelector('.gb').insertBefore(s, kids[tgt.idx] || null);
+    }
+  }
+  if (tgt && !sameEl) fx.hover();
+  P.tgt = tgt;
+}
+function autoScroll() {
+  if (!P || !P.drag) return;
+  const r = scroller.getBoundingClientRect(), E = 56, sp = 14;
+  let vx = 0, vy = 0;
+  if (P.cy < r.top + E) vy = -sp * (1 - (P.cy - r.top) / E);
+  else if (P.cy > r.bottom - E && !(P.tgt && P.tgt.kind === 'trash')) vy = sp * (1 - (r.bottom - P.cy) / E);
+  if (P.cx < r.left + E) vx = -sp * (1 - (P.cx - r.left) / E);
+  else if (P.cx > r.right - E) vx = sp * (1 - (r.right - P.cx) / E);
+  if (vx || vy) {
+    if (vx > 0 || vy > 0) { // grow board so you can drag further out
+      board.style.width = Math.max(board.offsetWidth, scroller.scrollLeft + scroller.clientWidth + 200) + 'px';
+      board.style.height = Math.max(board.offsetHeight, scroller.scrollTop + scroller.clientHeight + 200) + 'px';
+    }
+    scroller.scrollBy(vx, vy); detect();
+  }
+  requestAnimationFrame(autoScroll);
+}
+function end(e) {
+  if (!P || e.pointerId !== P.pid) return;
+  const p = P; P = null;
+  if (!p.drag) {
+    if (e.type === 'pointerup') p.kind === 'note' ? openNote(p.id) : openGroup(p.id);
+    return;
+  }
+  trash.classList.remove('show', 'hot');
+  layer.textContent = '';
+  const br = board.getBoundingClientRect();
+  const bx = Math.max(4, Math.round(p.x - br.left)), by = Math.max(4, Math.round(p.y - br.top));
+  const t = p.tgt;
+  let landId = p.id, gulpId = null, sound = 'drop', msg = '';
+  commit(() => {
+    if (t && t.kind === 'trash') {
+      if (p.kind === 'note') S.notes = S.notes.filter((n) => n.id !== p.id);
+      else { const g = group(p.id); S.notes = S.notes.filter((n) => !g.order.includes(n.id)); S.groups = S.groups.filter((x) => x !== g); }
+      sound = 'trash'; landId = null; msg = '削除しました（戻すで取り消し）';
+      return;
+    }
+    if (p.kind === 'note') {
+      const n = note(p.id);
+      if (n.gid) { const og = group(n.gid); og.order = og.order.filter((id) => id !== n.id); n.gid = null; }
+      if (t && t.kind === 'note') {
+        const tn = note(t.id); const gid = uid();
+        S.groups.push({ id: gid, title: '', x: tn.x, y: tn.y, collapsed: false, order: [tn.id, n.id] });
+        tn.gid = gid; n.gid = gid; landId = gid; gulpId = gid; sound = 'join'; msg = 'グループにしました';
+      } else if (t && t.kind === 'group') {
+        const g = group(t.id);
+        if (t.idx == null) g.order.push(n.id); else g.order.splice(Math.min(t.idx, g.order.length), 0, n.id);
+        n.gid = g.id; gulpId = g.id; landId = n.id; sound = p.from === g.id ? 'drop' : 'join';
+      } else {
+        n.x = bx; n.y = by;
+        if (p.from) msg = 'グループから外しました';
+      }
+    } else {
+      const g = group(p.id);
+      if (t && t.kind === 'group' && t.id !== g.id) {
+        const tg = group(t.id);
+        g.order.forEach((id) => { note(id).gid = tg.id; tg.order.push(id); });
+        g.order = []; landId = tg.id; gulpId = tg.id; sound = 'join'; msg = 'グループをまとめました';
+      } else if (t && t.kind === 'note') {
+        const tn = note(t.id); g.x = tn.x; g.y = tn.y; tn.gid = g.id; g.order.push(tn.id);
+        sound = 'join';
+      } else { g.x = bx; g.y = by; }
+    }
+  });
+  fx[sound]();
+  if (gulpId) flash(gulpId, 'gulp');
+  if (landId && landId !== gulpId) flash(landId, 'land');
+  if (msg) toast(msg);
+}
+
+/* ---------- clicks ---------- */
+scroller.addEventListener('click', (e) => { if (ovOn) { e.stopPropagation(); exitOverview(); } }, true);
+board.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  if (a.dataset.act === 'collapse') {
+    const id = a.dataset.id;
+    commit(() => { const g = group(id); g.collapsed = !g.collapsed; });
+    buzz(6); tone(600, 450, 0.05, 0.03); flash(id, 'gulp');
+  } else if (a.dataset.act === 'hint') {
+    S.hint = false; save(); render();
+  }
+});
+$('#undo').addEventListener('click', () => {
+  const prev = hist.pop(); if (!prev) return;
+  replaceS(JSON.parse(prev)); save(); render(); $('#undo').disabled = !hist.length; buzz(6); toast('元に戻しました');
+});
+
+/* ---------- sheet ---------- */
+const sheet = $('#sheet'), scrim = $('#scrim');
+let onClose = null, hideT;
+function openSheet(html, after, close) {
+  sheet.innerHTML = '<div class="grab"></div>' + html;
+  clearTimeout(hideT); sheet.hidden = false; scrim.hidden = false; onClose = close || null;
+  requestAnimationFrame(() => { sheet.classList.add('show'); scrim.classList.add('show'); });
+  after && after();
+}
+function closeSheet() {
+  if (sheet.hidden) return;
+  const f = onClose; onClose = null; f && f();
+  sheet.classList.remove('show'); scrim.classList.remove('show');
+  hideT = setTimeout(() => { sheet.hidden = true; scrim.hidden = true; }, 260);
+}
+scrim.addEventListener('click', closeSheet);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function openNote(id) {
+  const n = note(id); if (!n) return;
+  let color = n.color, del = false;
+  openSheet(`<h2>付箋を編集</h2>
+    <textarea id="eText" rows="3" maxlength="200">${esc(n.text)}</textarea>
+    <div class="swatches">${COLORS.map((c) => `<button type="button" class="sw c-${c}" data-c="${c}" aria-label="${COLOR_NAMES[c]}" aria-pressed="${c === color}"></button>`).join('')}</div>
+    <div class="row"><button type="button" class="btn danger" id="eDel">削除</button><button type="button" class="btn primary" id="eOk">完了</button></div>`,
+  () => {
+    sheet.querySelectorAll('.sw').forEach((b) => b.addEventListener('click', () => {
+      color = b.dataset.c; sheet.querySelectorAll('.sw').forEach((x) => x.setAttribute('aria-pressed', x === b)); buzz(5);
+    }));
+    $('#eDel').addEventListener('click', () => { del = true; closeSheet(); });
+    $('#eOk').addEventListener('click', closeSheet);
+  },
+  () => {
+    const text = $('#eText').value.trim();
+    if (del || !text) { commit(() => { S.notes = S.notes.filter((x) => x.id !== id); }); fx.trash(); toast('削除しました（戻すで取り消し）'); return; }
+    if (text !== n.text || color !== n.color) { commit(() => { const m = note(id); m.text = text; m.color = color; }); DB.lastColor = color; save(); flash(id, 'land'); }
+  });
+}
+function openGroup(id) {
+  const g = group(id); if (!g) return;
+  let act = null;
+  openSheet(`<h2>グループ</h2>
+    <input type="text" id="gTitle" maxlength="60" placeholder="グループの名前" value="${esc(g.title)}">
+    <div class="row"><button type="button" class="btn" id="gFold">${g.collapsed ? '広げる' : '畳む'}</button><button type="button" class="btn" id="gSplit">グループ解除</button></div>
+    <div class="row"><button type="button" class="btn danger" id="gDel">中身ごと削除</button><button type="button" class="btn primary" id="gOk">完了</button></div>`,
+  () => {
+    const t = $('#gTitle'); if (!g.title) setTimeout(() => t.focus(), 320);
+    t.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); closeSheet(); } });
+    $('#gFold').addEventListener('click', () => { act = 'fold'; closeSheet(); });
+    $('#gSplit').addEventListener('click', () => { act = 'split'; closeSheet(); });
+    $('#gDel').addEventListener('click', () => { act = 'del'; closeSheet(); });
+    $('#gOk').addEventListener('click', closeSheet);
+  },
+  () => {
+    const title = $('#gTitle').value.trim();
+    if (act === 'del') { commit(() => { S.notes = S.notes.filter((n) => n.gid !== id); }); fx.trash(); toast('削除しました（戻すで取り消し）'); return; }
+    if (act === 'split') {
+      commit(() => {
+        const gg = group(id);
+        gg.order.forEach((nid, i) => { const n = note(nid); n.gid = null; n.x = gg.x + (i % 2) * 148; n.y = gg.y + Math.floor(i / 2) * 86; });
+        gg.order = [];
+      });
+      fx.drop(); toast('グループを解除しました'); return;
+    }
+    if (title !== g.title || act === 'fold') {
+      commit(() => { const gg = group(id); gg.title = title; if (act === 'fold') gg.collapsed = !gg.collapsed; });
+      flash(id, 'gulp'); buzz(6);
+    }
+  });
+}
+
+/* ---------- menu ---------- */
+function toMarkdown() {
+  const lines = [];
+  const head = S.topic || S.name;
+  if (head) { lines.push('# ' + head.replace(/\n/g, ' ')); lines.push(''); }
+  S.groups.forEach((g) => {
+    lines.push('## ' + (g.title || '名前なし'));
+    g.order.forEach((id) => { const n = note(id); if (n) lines.push('- ' + n.text.replace(/\n/g, ' ')); });
+    lines.push('');
+  });
+  const loose = S.notes.filter((n) => !n.gid);
+  if (loose.length) { lines.push('## 未分類'); loose.forEach((n) => lines.push('- ' + n.text.replace(/\n/g, ' '))); }
+  return lines.join('\n').trim() + '\n';
+}
+function arrange() {
+  const W = Math.max(scroller.clientWidth, 220), H = Math.max(scroller.clientHeight, 220), colW = 196;
+  const items = [...board.querySelectorAll('.group'), ...board.querySelectorAll('.note.free')].map((el) => ({ id: el.dataset.id, kind: el.dataset.kind, h: el.offsetHeight }));
+  // pick the column count that lets the whole board fit one screen at the largest size
+  const tallest = (n) => { const h = new Array(n).fill(16); items.forEach((it) => { const c = h.indexOf(Math.min(...h)); h[c] += it.h + 14; }); return Math.max(...h); };
+  let cols = Math.max(1, Math.floor((W - 16) / colW)), best = 0;
+  for (let n = 1; n <= Math.min(8, items.length || 1); n++) { const k = Math.min(W / (16 + n * colW), H / tallest(n)); if (k > best + 0.001) { best = k; cols = n; } }
+  const hs = new Array(cols).fill(16);
+  commit(() => {
+    items.forEach((it) => {
+      const c = hs.indexOf(Math.min(...hs)); const x = 16 + c * colW, y = hs[c];
+      const o = it.kind === 'group' ? group(it.id) : note(it.id); o.x = x; o.y = y; hs[c] += it.h + 14;
+    });
+  });
+  scroller.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+  board.querySelectorAll('.group, .note.free').forEach((el) => flash(el.dataset.id, 'land'));
+  fx.join();
+}
+$('#menuBtn').addEventListener('click', () => {
+  let armed = null, after = null;
+  openSheet(`<h2>メニュー</h2>
+    <div class="menu-list">
+      <button type="button" class="btn" id="mExport">テキストで書き出す<small>見出しと箇条書きでコピーできます</small></button>
+      <button type="button" class="btn" id="mFit">全体を1画面で見る<small>スクショ用。どこかをタップすると戻ります</small></button>
+      <button type="button" class="btn" id="mArrange">きれいに並べる<small>全体表示で1画面に収まりやすいように整列します</small></button>
+      <button type="button" class="btn" id="mBackup">バックアップ<small>全ボードを書き出す・読み込む（機種変更や念のための保存に）</small></button>
+      <button type="button" class="btn" id="mSound">効果音: ${DB.sound ? 'オン' : 'オフ'}<small>振動は対応端末で常に有効です</small></button>
+      <button type="button" class="btn danger" id="mClear">このボードを空にする<small>「戻す」で取り消せます</small></button>
+    </div>`,
+  () => {
+    $('#mExport').addEventListener('click', () => { after = 'export'; closeSheet(); });
+    $('#mArrange').addEventListener('click', () => { after = 'arrange'; closeSheet(); });
+    $('#mFit').addEventListener('click', () => { after = 'fit'; closeSheet(); });
+    $('#mBackup').addEventListener('click', () => { after = 'backup'; closeSheet(); });
+    $('#mSound').addEventListener('click', (e) => { DB.sound = !DB.sound; save(); e.currentTarget.firstChild.textContent = '効果音: ' + (DB.sound ? 'オン' : 'オフ'); fx.add(); });
+    $('#mClear').addEventListener('click', (e) => {
+      const b = e.currentTarget;
+      if (!b.classList.contains('armed')) { b.classList.add('armed'); b.firstChild.textContent = 'もう一度押すと全部消えます'; buzz(12); clearTimeout(armed); armed = setTimeout(() => { b.classList.remove('armed'); b.firstChild.textContent = 'このボードを空にする'; }, 3000); return; }
+      after = 'clear'; closeSheet();
+    });
+  },
+  () => {
+    clearTimeout(armed);
+    if (after === 'clear') { commit(() => { S.notes = []; S.groups = []; S.hint = false; }); fx.trash(); toast('ボードを空にしました'); scroller.scrollTo(0, 0); }
+    else if (after === 'arrange') setTimeout(arrange, 280);
+    else if (after === 'export') setTimeout(openExport, 280);
+    else if (after === 'fit') setTimeout(enterOverview, 280);
+    else if (after === 'backup') setTimeout(openBackup, 280);
+  });
+});
+function openExport() {
+  const md = toMarkdown();
+  openSheet(`<h2>テキストで書き出す</h2><textarea class="md" id="mdOut" readonly>${esc(md)}</textarea>
+    <div class="row"><button type="button" class="btn" id="xClose">閉じる</button><button type="button" class="btn primary" id="xCopy">コピー</button></div>`,
+  () => {
+    $('#xClose').addEventListener('click', closeSheet);
+    $('#xCopy').addEventListener('click', () => {
+      const ta = $('#mdOut');
+      const fallback = () => { ta.focus(); ta.select(); toast('選択しました。長押しでコピーできます'); };
+      try { navigator.clipboard.writeText(md).then(() => { toast('コピーしました'); buzz(10); }, fallback); } catch (e) { fallback(); }
+    });
+  });
+}
+
+/* ---------- boards ---------- */
+const fmtDate = (t) => { const d = new Date(t || Date.now()); return (d.getMonth() + 1) + '/' + d.getDate(); };
+function openBoards() {
+  const list = [...DB.boards].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  let go = null;
+  openSheet(`<h2>ボード</h2>
+    <div class="board-list">${list.map((b) => `<button type="button" class="btn" data-bid="${b.id}" aria-current="${b.id === S.id}">${esc(boardLabel(b))}
+      <small>${b.name && b.topic ? 'お題：' + esc(b.topic) + '<br>' : ''}<span class="meta">${b.notes.length}枚・${fmtDate(b.updated)}更新</span></small></button>`).join('')}</div>
+    <div class="row"><button type="button" class="btn primary" id="bNew">＋ 新しいボード</button></div>`,
+  () => {
+    sheet.querySelectorAll('[data-bid]').forEach((el) => el.addEventListener('click', () => { go = el.dataset.bid; closeSheet(); }));
+    $('#bNew').addEventListener('click', () => { go = 'new'; closeSheet(); });
+  },
+  () => {
+    if (go === 'new') {
+      const b = blank(); DB.boards.push(b); switchBoard(b.id); fx.add();
+      setTimeout(() => openBoardEdit(true), 300);
+    } else if (go && go !== S.id) { switchBoard(go); buzz(6); toast(boardLabel(S) + ' を開きました'); }
+  });
+}
+function openBoardEdit(fresh) {
+  let del = false, armed = null;
+  openSheet(`<h2>${fresh ? '新しいボード' : 'お題とボード名'}</h2>
+    <label class="fl" for="bTopic">お題</label>
+    <textarea id="bTopic" rows="2" maxlength="120" placeholder="例：このサービスにかける思いは？">${esc(S.topic || '')}</textarea>
+    <label class="fl" for="bName">ボード名（空ならお題を表示）</label>
+    <input type="text" id="bName" maxlength="40" placeholder="例：〇〇サービス 思い" value="${esc(S.name || '')}">
+    <div class="row"><button type="button" class="btn danger" id="bDel">ボードを削除</button><button type="button" class="btn primary" id="bOk">完了</button></div>`,
+  () => {
+    const t = $('#bTopic'); if (fresh || !S.topic) setTimeout(() => t.focus(), 320);
+    t.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); closeSheet(); } });
+    $('#bOk').addEventListener('click', closeSheet);
+    $('#bDel').addEventListener('click', (e) => {
+      const b = e.currentTarget;
+      if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = 'もう一度で削除（戻せません）'; buzz(12); clearTimeout(armed); armed = setTimeout(() => { b.classList.remove('armed'); b.textContent = 'ボードを削除'; }, 3000); return; }
+      del = true; closeSheet();
+    });
+  },
+  () => {
+    clearTimeout(armed);
+    if (del) {
+      const label = boardLabel(S);
+      DB.boards = DB.boards.filter((b) => b.id !== S.id);
+      if (!DB.boards.length) DB.boards.push(blank());
+      const next = [...DB.boards].sort((a, b) => (b.updated || 0) - (a.updated || 0))[0];
+      S = next; switchBoard(next.id); fx.trash(); toast(label + ' を削除しました'); return;
+    }
+    const topic = $('#bTopic').value.replace(/\s*\n\s*/g, ' ').trim(), name = $('#bName').value.trim();
+    if (topic !== (S.topic || '') || name !== (S.name || '')) { S.topic = topic; S.name = name; S.updated = Date.now(); save(); render(); buzz(6); }
+  });
+}
+$('#boardBtn').addEventListener('click', openBoards);
+$('#topic').addEventListener('click', () => openBoardEdit(false));
+
+/* ---------- backup ---------- */
+function backupText() { return JSON.stringify({ app: 'yosefusen', version: 2, saved: new Date().toISOString(), boards: DB.boards }); }
+function importBackup(text) {
+  let d; try { d = JSON.parse(text); } catch (e) { return '読み込めませんでした。バックアップの文字列をそのまま貼ってください'; }
+  const boards = d && Array.isArray(d.boards) ? d.boards : null;
+  if (!boards || !boards.every((b) => b && b.id && Array.isArray(b.notes) && Array.isArray(b.groups))) return 'ちょいブレのバックアップではないようです';
+  let added = 0, updated = 0;
+  boards.forEach((b) => {
+    const i = DB.boards.findIndex((x) => x.id === b.id);
+    if (i >= 0) { DB.boards[i] = b; updated++; } else { DB.boards.push(b); added++; }
+  });
+  const cur = DB.boards.find((x) => x.id === S.id) || DB.boards[0];
+  S = cur; switchBoard(cur.id);
+  return `読み込みました（追加${added}・上書き${updated}）`;
+}
+function openBackup() {
+  const txt = backupText();
+  openSheet(`<h2>バックアップ</h2>
+    <label class="fl" for="bkOut">書き出し（全${DB.boards.length}ボード）。コピーしてメモアプリなどに保存してください</label>
+    <textarea class="md" id="bkOut" readonly style="height:16vh">${esc(txt)}</textarea>
+    <div class="row"><button type="button" class="btn" id="bkFile">ファイルで保存</button><button type="button" class="btn primary" id="bkCopy">コピー</button></div>
+    <label class="fl" for="bkIn">読み込み。同じボードは上書き、ないボードは追加されます</label>
+    <textarea class="md" id="bkIn" style="height:12vh" placeholder="ここにバックアップを貼り付け"></textarea>
+    <div class="row"><label class="btn" for="bkPick" style="text-align:center">ファイルを選ぶ</label><input type="file" id="bkPick" accept=".json,application/json,text/plain" hidden><button type="button" class="btn primary" id="bkLoad">貼り付けた内容を読み込む</button></div>`,
+  () => {
+    $('#bkCopy').addEventListener('click', () => {
+      const ta = $('#bkOut'); const fallback = () => { ta.focus(); ta.select(); toast('選択しました。長押しでコピーできます'); };
+      try { navigator.clipboard.writeText(txt).then(() => { toast('コピーしました'); buzz(10); }, fallback); } catch (e) { fallback(); }
+    });
+    $('#bkFile').addEventListener('click', () => {
+      try {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' }));
+        const d = new Date(); a.download = `choibure-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+        toast('保存できない場合は「コピー」を使ってください');
+      } catch (e) { toast('この画面ではファイル保存できません。「コピー」を使ってください'); }
+    });
+    $('#bkLoad').addEventListener('click', () => { const v = $('#bkIn').value.trim(); if (!v) { toast('先にバックアップを貼り付けてください'); return; } const m = importBackup(v); toast(m); if (m.startsWith('読み込みました')) { fx.join(); closeSheet(); } });
+    $('#bkPick').addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      const r = new FileReader(); r.onload = () => { const m = importBackup(String(r.result)); toast(m); if (m.startsWith('読み込みました')) { fx.join(); closeSheet(); } }; r.readAsText(f);
+    });
+  });
+}
+
+/* ---------- overview (fit whole board) ---------- */
+let ovOn = false;
+function fitOverview() {
+  if (!ovOn) return;
+  board.style.transform = '';
+  const els = [...board.querySelectorAll('.group, .note.free')];
+  if (!els.length) return;
+  let x0 = Infinity, y0 = Infinity, x1 = 0, y1 = 0;
+  els.forEach((el) => { x0 = Math.min(x0, el.offsetLeft); y0 = Math.min(y0, el.offsetTop); x1 = Math.max(x1, el.offsetLeft + el.offsetWidth); y1 = Math.max(y1, el.offsetTop + el.offsetHeight); });
+  const pad = 12, W = scroller.clientWidth, H = scroller.clientHeight, w = x1 - x0, h = y1 - y0;
+  const k = Math.min(1, (W - pad * 2) / w, (H - pad * 2) / h);
+  const tx = (W - w * k) / 2 - x0 * k, ty = pad - y0 * k;
+  board.style.transform = `translate(${tx}px, ${ty}px) scale(${k})`;
+}
+function enterOverview() {
+  if (!S.notes.length) { toast('付箋がまだありません'); return; }
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  ovOn = true; app.classList.add('overview'); scroller.scrollTo(0, 0);
+  requestAnimationFrame(() => { fitOverview(); toast('全体表示中。タップで戻ります'); });
+  buzz(6); tone(450, 600, 0.05, 0.03);
+}
+function exitOverview() {
+  if (!ovOn) return;
+  ovOn = false; app.classList.remove('overview'); board.style.transform = ''; sizeBoard();
+}
+$('#fitBtn').addEventListener('click', () => { if (ovOn) { exitOverview(); buzz(6); } else enterOverview(); });
+
+/* ---------- viewport (keyboard) ---------- */
+const app = $('#app');
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  const fit = () => {
+    const kb = vv.height < window.innerHeight - 80;
+    app.style.height = kb ? vv.height + 'px' : '';
+    if (vv.offsetTop) window.scrollTo(0, 0);
+  };
+  vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit);
+}
+window.addEventListener('resize', () => { if (ovOn) fitOverview(); else sizeBoard(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+
+render();
+
+/* ---------- install as an app (only on the real https site) ---------- */
+if (location.protocol === 'https:' && 'serviceWorker' in navigator && !/claude|claudeusercontent/.test(location.hostname)) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+}
+})();
+</script>
+
+</html>
