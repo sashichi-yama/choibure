@@ -232,17 +232,30 @@ function sample() {
     hint: true,
   };
 }
+const SAMPLE_NAME = '見本ボード';
 const blank = () => ({ id: uid(), name: '', topic: '', notes: [], groups: [], hint: false, updated: Date.now() });
 function load() {
   try { const r = localStorage.getItem(KEY); if (r) { const d = JSON.parse(r); if (d && d.boards && d.boards.length) return d; } } catch (e) {}
   // migrate the single board from v1, or start with the example board
   let first = null;
   try { const o = localStorage.getItem(OLD_KEY); if (o) { const v = JSON.parse(o); first = { ...blank(), notes: v.notes || [], groups: v.groups || [], hint: !!v.hint }; } } catch (e) {}
-  if (!first) first = { ...blank(), ...sample(), topic: '新しく始めたい趣味は？' };
-  return { boards: [first], current: first.id, sound: true, lastColor: 'y' };
+  if (first) return { boards: [first], current: first.id, sound: true, lastColor: 'y', sampleSplit: true };
+  // first run: open on your own empty board; the example sits in the board list
+  const mine = { ...blank(), updated: Date.now() };
+  const ex = { ...blank(), ...sample(), name: SAMPLE_NAME, topic: '新しく始めたい趣味は？', updated: Date.now() - 1000 };
+  return { boards: [mine, ex], current: mine.id, sound: true, lastColor: 'y', sampleSplit: true };
 }
 const DB = load();
+// older installs opened straight onto the example board; give them their own board to land on
+if (!DB.sampleSplit) {
+  DB.sampleSplit = true;
+  const ex = DB.boards.length === 1 && DB.boards[0].topic === '新しく始めたい趣味は？' && !DB.boards[0].name ? DB.boards[0] : null;
+  if (ex) { ex.name = SAMPLE_NAME; ex.updated = Date.now() - 1000; const mine = blank(); DB.boards.unshift(mine); DB.current = mine.id; }
+  try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {}
+}
 let S = DB.boards.find((b) => b.id === DB.current) || DB.boards[0];
+// never land on the example board at launch when you have a board of your own
+if (S.name === SAMPLE_NAME) { const own = DB.boards.filter((b) => b.name !== SAMPLE_NAME).sort((x, y) => (y.updated || 0) - (x.updated || 0))[0]; if (own) S = own; }
 let hist = [];
 function save() { DB.current = S.id; try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {} }
 function commit(fn) {
@@ -305,7 +318,7 @@ function render() {
   board.textContent = '';
   if (S.hint) {
     const h = document.createElement('div'); h.id = 'hint';
-    h.innerHTML = '<div>例のボードです。<b>付箋を別の付箋に重ねる</b>とグループに、<b>グループの外へ出す</b>と解除。メニューから空にして始められます。</div><button type="button" data-act="hint">閉じる</button>';
+    h.innerHTML = '<div>見本のボードです。<b>付箋を別の付箋に重ねる</b>とグループに、<b>グループの外へ出す</b>と解除。左上のボード名から自分のボードに戻れます。</div><button type="button" data-act="hint">閉じる</button>';
     board.appendChild(h);
   }
   for (const g of S.groups) {
