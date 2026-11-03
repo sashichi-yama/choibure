@@ -57,6 +57,7 @@
 
 html { box-sizing: border-box; height: 100%; }
 body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
 body { background: var(--board); color: var(--ink); font-family: var(--f-body); overflow: hidden; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -1043,7 +1044,7 @@ if (window.visualViewport) {
     app.style.height = kb ? vv.height + 'px' : '';
     app.style.transform = kb && vv.offsetTop ? `translateY(${vv.offsetTop}px)` : '';
     // keep bottom sheets resting on top of the keyboard
-    sheet.style.bottom = kb ? bottomGap + 'px' : '';
+    sheet.style.bottom = kb && !sheet.hidden ? bottomGap + 'px' : '';
     sheet.style.maxHeight = kb ? (vv.height - 8) + 'px' : '';
   };
   vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit);
