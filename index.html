@@ -9,6 +9,7 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <meta name="theme-color" content="#f7f9fb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1d2530" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" id="themeColor" content="">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ちょいブレ">
@@ -342,6 +343,25 @@ function cleanup() {
 }
 const note = (id) => S.notes.find((n) => n.id === id);
 const group = (id) => S.groups.find((g) => g.id === id);
+
+/* ---------- theme: auto (follow iPhone) / light / dark ---------- */
+const THEMES = { auto: '自動（iPhoneの設定）', light: 'ライト', dark: 'ダーク' };
+function applyTheme() {
+  const t = THEMES[DB.theme] ? DB.theme : 'auto';
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = t;
+  const m = document.getElementById('themeColor');
+  if (t === 'auto') m.removeAttribute('content'); else m.setAttribute('content', t === 'dark' ? '#1d2530' : '#f7f9fb');
+}
+applyTheme();
+const themeBtn = (id) => `<button type="button" class="btn" id="${id}">テーマ: ${THEMES[DB.theme] || THEMES.auto}<small>押すたびに 自動 → ライト → ダーク と切り替わります</small></button>`;
+function bindTheme(id) {
+  $('#' + id).addEventListener('click', (e) => {
+    const order = ['auto', 'light', 'dark'];
+    DB.theme = order[(order.indexOf(DB.theme || 'auto') + 1) % 3]; save(); applyTheme(); buzz(6);
+    e.currentTarget.firstChild.textContent = 'テーマ: ' + THEMES[DB.theme];
+    if (!$('#home').hidden) renderHome();
+  });
+}
 
 /* ---------- feel: haptics + sound ---------- */
 const hapLabel = $('#hapLabel');
@@ -749,6 +769,7 @@ $('#menuBtn').addEventListener('click', () => {
       <button type="button" class="btn" id="mArrange">きれいに並べる<small>全体表示で1画面に収まりやすいように整列します</small></button>
       <button type="button" class="btn" id="mBackup">バックアップ<small>全ボードを書き出す・読み込む（機種変更や念のための保存に）</small></button>
       <button type="button" class="btn" id="mSound">効果音: ${DB.sound ? 'オン' : 'オフ'}<small>振動は対応端末で常に有効です</small></button>
+      ${themeBtn('mTheme')}
       <button type="button" class="btn danger" id="mClear">このボードを空にする<small>「戻す」で取り消せます</small></button>
     </div>`,
   () => {
@@ -757,6 +778,7 @@ $('#menuBtn').addEventListener('click', () => {
     $('#mFit').addEventListener('click', () => { after = 'fit'; closeSheet(); });
     $('#mBackup').addEventListener('click', () => { after = 'backup'; closeSheet(); });
     $('#mSound').addEventListener('click', (e) => { DB.sound = !DB.sound; save(); e.currentTarget.firstChild.textContent = '効果音: ' + (DB.sound ? 'オン' : 'オフ'); fx.add(); });
+    bindTheme('mTheme');
     $('#mClear').addEventListener('click', (e) => {
       const b = e.currentTarget;
       if (!b.classList.contains('armed')) { b.classList.add('armed'); b.firstChild.textContent = 'もう一度押すと全部消えます'; buzz(12); clearTimeout(armed); armed = setTimeout(() => { b.classList.remove('armed'); b.firstChild.textContent = 'このボードを空にする'; }, 3000); return; }
@@ -878,10 +900,12 @@ $('#hMenu').addEventListener('click', () => {
   let after = null;
   openSheet(`<h2>メニュー</h2><div class="menu-list">
     <button type="button" class="btn" id="hmBackup">バックアップ<small>全ボードを書き出す・読み込む（機種変更や念のための保存に）</small></button>
-    <button type="button" class="btn" id="hmSound">効果音: ${DB.sound ? 'オン' : 'オフ'}<small>振動は対応端末で常に有効です</small></button></div>`,
+    <button type="button" class="btn" id="hmSound">効果音: ${DB.sound ? 'オン' : 'オフ'}<small>振動は対応端末で常に有効です</small></button>
+    ${themeBtn('hmTheme')}</div>`,
   () => {
     $('#hmBackup').addEventListener('click', () => { after = 'backup'; closeSheet(); });
     $('#hmSound').addEventListener('click', (e) => { DB.sound = !DB.sound; save(); e.currentTarget.firstChild.textContent = '効果音: ' + (DB.sound ? 'オン' : 'オフ'); fx.add(); });
+    bindTheme('hmTheme');
   },
   () => { if (after === 'backup') setTimeout(openBackup, 280); });
 });
