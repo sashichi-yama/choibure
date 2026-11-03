@@ -1,5 +1,5 @@
 // ちょいブレ service worker: works offline; the page refreshes itself in the background.
-const CACHE = 'choibure-v4';
+const CACHE = 'choibure-v5';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => {
