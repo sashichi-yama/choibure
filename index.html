@@ -69,10 +69,6 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
 #boardName { display: flex; align-items: center; gap: 4px; font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: .02em; min-width: 0; }
 #boardName span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #count { font-family: var(--f-body); font-weight: 400; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 14px; }
-#topic { display: flex; align-items: baseline; gap: 8px; width: 100%; box-sizing: border-box; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: var(--chrome); padding: 8px 16px 10px; }
-#topic .tl { flex: none; font-size: 11px; font-weight: 700; color: var(--accent); border: 1px solid currentColor; border-radius: 6px; padding: 1px 6px; }
-#topic .tt { flex: 1; min-width: 0; font: 700 15px/1.5 var(--f-display); overflow-wrap: anywhere; }
-#topic .tt.empty { color: var(--muted); font-weight: 500; }
 .board-list { display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow: auto; margin: 0 -4px; padding: 0 4px; }
 .board-list .btn { text-align: left; padding: 11px 14px; font-weight: 600; }
 .board-list .btn[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
@@ -121,6 +117,8 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
 #app.overview .note, #app.overview .gh { cursor: zoom-out; }
 .ib { border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 7px 11px; font-size: 13px; }
 .ib:disabled { opacity: .35; cursor: default; }
+.ib.ic { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; flex: none; }
+header .ib.ic { margin: -4px -3px; }
 
 #scroller { flex: 1; overflow: auto; position: relative; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 #board { position: relative; min-width: 100%; min-height: 100%;
@@ -218,12 +216,12 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
 <div id="app">
   <header>
     <button class="ib" id="homeBtn" aria-label="ボード一覧に戻る"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg></button>
-    <h1><button type="button" id="boardBtn" aria-label="お題とボード名を編集"><span id="boardName"><span id="boardNameText"></span></span><small id="count"></small></button></h1>
-    <button class="ib" id="fitBtn" aria-label="全体を1画面に収める">全体</button>
-    <button class="ib" id="undo" disabled aria-label="元に戻す">戻す</button>
-    <button class="ib" id="menuBtn">メニュー</button>
+    <h1><button type="button" id="boardBtn" aria-label="ボード名を編集"><span id="boardName"><span id="boardNameText"></span></span><small id="count"></small></button></h1>
+    <button class="ib ic" id="undo" disabled aria-label="元に戻す"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button class="ib ic" id="redo" disabled aria-label="やり直す"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    <button class="ib ic" id="fitBtn" aria-label="全体を1画面に収める"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg></button>
+    <button class="ib ic" id="menuBtn" aria-label="メニュー"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></button>
   </header>
-  <button type="button" id="topic"><span class="tl">お題</span><span class="tt" id="topicText"></span></button>
   <div id="scroller">
     <div id="board"></div>
   </div>
@@ -281,7 +279,7 @@ function sample() {
   };
 }
 const SAMPLE_NAME = '見本ボード';
-const blank = () => ({ id: uid(), name: '', topic: '', notes: [], groups: [], hint: false, created: Date.now(), updated: Date.now() });
+const blank = () => ({ id: uid(), name: '', notes: [], groups: [], hint: false, created: Date.now(), updated: Date.now() });
 function load() {
   try { const r = localStorage.getItem(KEY); if (r) { const d = JSON.parse(r); if (d && d.boards && d.boards.length) return d; } } catch (e) {}
   // migrate the single board from v1, or start with the example board
@@ -290,7 +288,7 @@ function load() {
   if (first) return { boards: [first], current: first.id, sound: true, lastColor: 'y', sampleSplit: true };
   // first run: open on your own empty board; the example sits in the board list
   const mine = { ...blank(), updated: Date.now() };
-  const ex = { ...blank(), ...sample(), name: SAMPLE_NAME, topic: '新しく始めたい趣味は？', updated: Date.now() - 1000 };
+  const ex = { ...blank(), ...sample(), name: '新しく始めたい趣味は？', sample: true, updated: Date.now() - 1000 };
   return { boards: [mine, ex], current: mine.id, sound: true, lastColor: 'y', sampleSplit: true };
 }
 const DB = load();
@@ -301,20 +299,38 @@ if (!DB.sampleSplit) {
   if (ex) { ex.name = SAMPLE_NAME; ex.updated = Date.now() - 1000; const mine = blank(); DB.boards.unshift(mine); DB.current = mine.id; }
   try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {}
 }
+// the お題 field was dropped (2026-11): fold each board's topic into its name, or keep it as a note
+if (DB.boards.some((b) => 'topic' in b)) {
+  DB.boards.forEach((b) => {
+    const t = (b.topic || '').trim();
+    if (b.name === SAMPLE_NAME) { b.sample = true; b.name = t || b.name; }
+    else if (t && !b.name) b.name = t;
+    else if (t) {
+      const ys = b.notes.filter((n) => !n.gid).map((n) => n.y).concat(b.groups.map((g) => g.y));
+      const dy = Math.max(0, 110 - (ys.length ? Math.min(...ys) : 110));
+      if (dy) { b.notes.forEach((n) => { if (!n.gid) n.y += dy; }); b.groups.forEach((g) => { g.y += dy; }); }
+      b.notes.push({ id: uid(), text: t, color: 'y', x: 16, y: 16, gid: null });
+    }
+    delete b.topic;
+  });
+  try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {}
+}
 let S = DB.boards.find((b) => b.id === DB.current) || DB.boards[0];
 // never land on the example board at launch when you have a board of your own
-if (S.name === SAMPLE_NAME) { const own = DB.boards.filter((b) => b.name !== SAMPLE_NAME).sort((x, y) => (y.updated || 0) - (x.updated || 0))[0]; if (own) S = own; }
-let hist = [];
+if (S.sample) { const own = DB.boards.filter((b) => !b.sample).sort((x, y) => (y.updated || 0) - (x.updated || 0))[0]; if (own) S = own; }
+let hist = [], future = [];
+function syncHist() { $('#undo').disabled = !hist.length; $('#redo').disabled = !future.length; }
 function save() { DB.current = S.id; try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch (e) {} }
 function commit(fn) {
   hist.push(JSON.stringify(S)); if (hist.length > 50) hist.shift();
-  fn(); cleanup(); S.updated = Date.now(); save(); render(); $('#undo').disabled = false;
+  future = [];
+  fn(); cleanup(); S.updated = Date.now(); save(); render(); syncHist();
 }
 function replaceS(obj) { const i = DB.boards.findIndex((b) => b.id === S.id); DB.boards[i] = obj; S = obj; }
-const boardLabel = (b) => b.name || b.topic || '無題のボード';
+const boardLabel = (b) => b.name || '無題のボード';
 function switchBoard(id) {
   const b = DB.boards.find((x) => x.id === id); if (!b) return;
-  exitOverview(); S = b; hist = []; $('#undo').disabled = true; save(); render(); scroller.scrollTo(0, 0);
+  exitOverview(); S = b; hist = []; future = []; syncHist(); save(); render(); scroller.scrollTo(0, 0);
 }
 function cleanup() {
   const ids = new Set(S.notes.map((n) => n.id));
@@ -394,7 +410,6 @@ function render() {
   sizeBoard();
   $('#count').textContent = S.notes.length ? S.notes.length + '枚・' + S.groups.length + 'グループ' : '付箋なし';
   $('#boardNameText').textContent = boardLabel(S);
-  const tt = $('#topicText'); tt.textContent = S.topic || 'お題を書く（タップ）'; tt.classList.toggle('empty', !S.topic);
   document.title = boardLabel(S) + ' - ちょいブレ';
   if (ovOn) requestAnimationFrame(fitOverview);
 }
@@ -612,7 +627,13 @@ board.addEventListener('click', (e) => {
 });
 $('#undo').addEventListener('click', () => {
   const prev = hist.pop(); if (!prev) return;
-  replaceS(JSON.parse(prev)); save(); render(); $('#undo').disabled = !hist.length; buzz(6); toast('元に戻しました');
+  future.push(JSON.stringify(S)); if (future.length > 50) future.shift();
+  replaceS(JSON.parse(prev)); save(); render(); syncHist(); buzz(6); toast('元に戻しました');
+});
+$('#redo').addEventListener('click', () => {
+  const next = future.pop(); if (!next) return;
+  hist.push(JSON.stringify(S)); if (hist.length > 50) hist.shift();
+  replaceS(JSON.parse(next)); save(); render(); syncHist(); buzz(6); toast('やり直しました');
 });
 
 /* ---------- sheet ---------- */
@@ -689,7 +710,7 @@ function openGroup(id) {
 /* ---------- menu ---------- */
 function toMarkdown() {
   const lines = [];
-  const head = S.topic || S.name;
+  const head = S.name;
   if (head) { lines.push('# ' + head.replace(/\n/g, ' ')); lines.push(''); }
   S.groups.forEach((g) => {
     lines.push('## ' + (g.title || '名前なし'));
@@ -769,7 +790,7 @@ const fmtDate = (t) => { const d = new Date(t || Date.now()); return (d.getMonth
 /* ---------- home: board list ---------- */
 const home = $('#home'), hList = $('#hList');
 const SORTS = { updated: '更新が新しい順', created: '作った順', manual: '自由に並べる' };
-const isEmptyBoard = (b) => !b.notes.length && !b.name && !b.topic;
+const isEmptyBoard = (b) => !b.notes.length && !b.name;
 function sortedBoards() {
   const list = [...DB.boards];
   const sort = DB.sort || 'updated';
@@ -817,9 +838,8 @@ function renderHome() {
   hList.textContent = '';
   sortedBoards().forEach((b) => {
     const el = document.createElement('button'); el.type = 'button'; el.className = 'bitem'; el.dataset.bid = b.id;
-    const sampleTag = b.name === SAMPLE_NAME ? '<span class="tag">見本</span>' : '';
-    const label = b.name === SAMPLE_NAME ? (b.topic || boardLabel(b)) : boardLabel(b);
-    const sub = b.name && b.topic && b.name !== SAMPLE_NAME ? `<span class="bt">お題：${esc(b.topic)}</span>` : '';
+    const sampleTag = b.sample ? '<span class="tag">見本</span>' : '';
+    const label = boardLabel(b), sub = '';
     const meta = `<span class="bm">${b.notes.length}枚・${fmtDate(b.updated)}</span>`;
     el.innerHTML = view === 'card'
       ? `<canvas class="th" aria-hidden="true"></canvas>${sampleTag}<span class="bi"><span class="bn">${esc(label)}</span>${sub}${meta}</span>`
@@ -923,14 +943,11 @@ hList.addEventListener('keydown', (e) => { const el = e.target.closest('.bitem')
 
 function openBoardEdit(fresh) {
   let del = false, armed = null;
-  openSheet(`<h2>${fresh ? '新しいボード' : 'お題とボード名'}</h2>
-    <label class="fl" for="bTopic">お題</label>
-    <textarea id="bTopic" rows="2" maxlength="120" placeholder="例：このサービスにかける思いは？">${esc(S.topic || '')}</textarea>
-    <label class="fl" for="bName">ボード名（空ならお題を表示）</label>
-    <input type="text" id="bName" maxlength="40" placeholder="例：〇〇サービス 思い" value="${esc(S.name || '')}">
+  openSheet(`<h2>${fresh ? '新しいボード' : 'ボード名'}</h2>
+    <input type="text" id="bName" aria-label="ボード名" maxlength="60" placeholder="例：このサービスにかける思い" value="${esc(S.name || '')}">
     <div class="row"><button type="button" class="btn danger" id="bDel">ボードを削除</button><button type="button" class="btn primary" id="bOk">完了</button></div>`,
   () => {
-    const t = $('#bTopic'); if (fresh || !S.topic) setTimeout(() => t.focus(), 320);
+    const t = $('#bName'); if (fresh || !S.name) setTimeout(() => t.focus(), 320);
     t.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); closeSheet(); } });
     $('#bOk').addEventListener('click', closeSheet);
     $('#bDel').addEventListener('click', (e) => {
@@ -945,15 +962,14 @@ function openBoardEdit(fresh) {
       const label = boardLabel(S);
       DB.boards = DB.boards.filter((b) => b.id !== S.id);
       if (!DB.boards.length) DB.boards.push(blank());
-      S = DB.boards[0]; hist = []; save(); showHome(); fx.trash(); toast(label + ' を削除しました'); return;
+      S = DB.boards[0]; hist = []; future = []; syncHist(); save(); showHome(); fx.trash(); toast(label + ' を削除しました'); return;
     }
-    const topic = $('#bTopic').value.replace(/\s*\n\s*/g, ' ').trim(), name = $('#bName').value.trim();
-    if (topic !== (S.topic || '') || name !== (S.name || '')) { S.topic = topic; S.name = name; S.updated = Date.now(); save(); render(); buzz(6); }
+    const name = $('#bName').value.trim();
+    if (name !== (S.name || '')) { S.name = name; S.updated = Date.now(); save(); render(); buzz(6); }
   });
 }
 $('#boardBtn').addEventListener('click', () => openBoardEdit(false));
 $('#homeBtn').addEventListener('click', () => { showHome(); buzz(6); });
-$('#topic').addEventListener('click', () => openBoardEdit(false));
 
 /* ---------- backup ---------- */
 function backupText() { return JSON.stringify({ app: 'yosefusen', version: 2, saved: new Date().toISOString(), boards: DB.boards }); }
