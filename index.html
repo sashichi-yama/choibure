@@ -78,6 +78,9 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
 .board-list .btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 3px; overflow-wrap: anywhere; }
 .board-list .btn .meta { font-variant-numeric: tabular-nums; }
 #sheet label.fl { font-size: 12px; color: var(--muted); margin-bottom: -6px; }
+/* keyboard open: the home-bar inset is covered by the keyboard, so drop it */
+.kb .bar { padding-bottom: 10px; }
+.kb #sheet { padding-bottom: 14px; border-radius: 18px 18px 0 0; }
 /* home: board list shown at launch */
 #home { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; background: var(--board); }
 #home[hidden] { display: none; }
@@ -167,7 +170,7 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
 #trash.show { translate: -50% 0; opacity: 1; visibility: visible; transition-delay: 0s; }
 #trash.hot { scale: 1.15; background: var(--danger); color: var(--chrome); border-style: solid; }
 
-.bar { display: flex; gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--chrome); border-top: 1px solid var(--line); }
+.bar { display: flex; gap: 8px; padding: 10px 16px max(10px, calc(env(safe-area-inset-bottom, 0px) - 14px)); background: var(--chrome); border-top: 1px solid var(--line); }
 .bar input { flex: 1; min-width: 0; font: 16px var(--f-display); font-weight: 500; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--board); color: var(--ink); -webkit-user-select: text; user-select: text; }
 .bar input::placeholder { color: var(--muted); }
 .add { border: 0; border-radius: 12px; padding: 0 18px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 15px; }
@@ -1026,18 +1029,26 @@ $('#fitBtn').addEventListener('click', () => { if (ovOn) { exitOverview(); buzz(
 /* ---------- viewport (keyboard) ---------- */
 const app = $('#app');
 if (window.visualViewport) {
-  const vv = window.visualViewport;
+  const vv = window.visualViewport, root = document.documentElement;
+  // the layout viewport stays full height when the iPhone keyboard opens; the visual viewport shrinks.
+  // (window.innerHeight follows the visual viewport on iOS, so it can't be used to measure the keyboard.)
+  let full = Math.max(root.clientHeight, window.innerHeight);
   const fit = () => {
-    const kb = vv.height < window.innerHeight - 80;
+    if (window.scrollY) window.scrollTo(0, 0);
+    const layoutH = root.clientHeight || full;
+    const bottomGap = Math.max(0, layoutH - (vv.offsetTop + vv.height));
+    const kb = vv.height < full - 120;
+    if (!kb) full = Math.max(root.clientHeight, window.innerHeight);
+    root.classList.toggle('kb', kb);
     app.style.height = kb ? vv.height + 'px' : '';
-    // keep bottom sheets above the on-screen keyboard
-    const kbH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    sheet.style.bottom = kbH + 'px';
-    sheet.style.maxHeight = (vv.height - 12) + 'px';
-    sheet.style.paddingBottom = kbH ? '14px' : '';
-    if (vv.offsetTop) window.scrollTo(0, 0);
+    app.style.transform = kb && vv.offsetTop ? `translateY(${vv.offsetTop}px)` : '';
+    // keep bottom sheets resting on top of the keyboard
+    sheet.style.bottom = kb ? bottomGap + 'px' : '';
+    sheet.style.maxHeight = kb ? (vv.height - 8) + 'px' : '';
   };
   vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit);
+  document.addEventListener('focusin', () => { [50, 300, 650].forEach((t) => setTimeout(fit, t)); });
+  document.addEventListener('focusout', () => { [50, 300].forEach((t) => setTimeout(fit, t)); });
 }
 window.addEventListener('resize', () => { if (ovOn) fitOverview(); else sizeBoard(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
