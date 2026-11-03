@@ -119,6 +119,7 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
 .ib:disabled { opacity: .35; cursor: default; }
 .ib.ic { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; flex: none; }
 header .ib.ic { margin: -4px -3px; }
+#home header .ib.ic { margin: -6px -3px; }
 
 #scroller { flex: 1; overflow: auto; position: relative; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 #board { position: relative; min-width: 100%; min-height: 100%;
@@ -233,8 +234,8 @@ header .ib.ic { margin: -4px -3px; }
 <div id="home" hidden>
   <header>
     <h1>ちょいブレ</h1>
-    <button class="ib" id="hView" aria-label="表示を切り替える">リスト</button>
-    <button class="ib" id="hMenu">メニュー</button>
+    <button class="ib ic" id="hView" aria-label="リスト表示にする"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <button class="ib ic" id="hMenu" aria-label="メニュー"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></button>
   </header>
   <div id="homeScroll">
     <button type="button" id="hNew">＋ 新しいボード</button>
@@ -831,7 +832,7 @@ function renderHome() {
   if (DB.boards.length !== before) save();
   const view = DB.view || 'card', sort = DB.sort || 'updated';
   hList.className = view === 'card' ? 'cards' : 'rows';
-  $('#hView').textContent = view === 'card' ? 'リスト' : 'カード';
+  const hv = $('#hView'); hv.innerHTML = view === 'card' ? `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>` : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>`; hv.setAttribute('aria-label', view === 'card' ? 'リスト表示にする' : 'カード表示にする');
   $('#hView').setAttribute('aria-label', view === 'card' ? 'リスト表示にする' : 'カード表示にする');
   $('#hSort').textContent = '並び順：' + SORTS[sort];
   $('#hCount').textContent = DB.boards.length ? DB.boards.length + 'ボード' + (sort === 'manual' ? '・長押しで並べ替え' : '') : 'まだボードがありません';
