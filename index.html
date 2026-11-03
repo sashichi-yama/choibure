@@ -67,7 +67,6 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
 #boardBtn { flex: 1; min-width: 0; border: 0; background: transparent; padding: 2px 0; text-align: left; display: flex; flex-direction: column; }
 #boardName { display: flex; align-items: center; gap: 4px; font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: .02em; min-width: 0; }
 #boardName span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#boardName svg { flex: none; color: var(--muted); }
 #count { font-family: var(--f-body); font-weight: 400; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 14px; }
 #topic { display: flex; align-items: baseline; gap: 8px; width: 100%; box-sizing: border-box; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: var(--chrome); padding: 8px 16px 10px; }
 #topic .tl { flex: none; font-size: 11px; font-weight: 700; color: var(--accent); border: 1px solid currentColor; border-radius: 6px; padding: 1px 6px; }
@@ -79,6 +78,36 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
 .board-list .btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 3px; overflow-wrap: anywhere; }
 .board-list .btn .meta { font-variant-numeric: tabular-nums; }
 #sheet label.fl { font-size: 12px; color: var(--muted); margin-bottom: -6px; }
+/* home: board list shown at launch */
+#home { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; background: var(--board); }
+#home[hidden] { display: none; }
+#home header h1 { font-family: var(--f-display); font-weight: 700; font-size: 20px; letter-spacing: .02em; display: block; }
+.ib.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+#homeScroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px; }
+#hNew { width: 100%; border: 0; border-radius: 14px; padding: 15px; background: var(--accent); color: var(--accent-ink); font: 700 16px var(--f-display); box-shadow: var(--shadow); }
+.hbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.hbar button { border: 0; background: transparent; color: var(--accent); font-size: 13px; padding: 4px 2px; }
+#hList.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+#hList.rows { display: flex; flex-direction: column; gap: 8px; }
+.bitem { position: relative; border: 1px solid var(--line); background: var(--chrome); border-radius: 14px; text-align: left; padding: 0; overflow: hidden; touch-action: pan-y; -webkit-touch-callout: none; min-width: 0; }
+.bitem .th { display: block; width: 100%; aspect-ratio: 4 / 3; background: var(--board); border-bottom: 1px solid var(--line); }
+.bitem .bi { display: flex; flex-direction: column; gap: 2px; padding: 9px 11px 11px; min-width: 0; }
+.bitem .bn { font: 700 14px/1.4 var(--f-display); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bitem .bt { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bitem .bm { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bitem .tag { position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: 700; color: var(--accent); background: var(--chrome); border: 1px solid currentColor; border-radius: 6px; padding: 1px 6px; }
+.rows .bitem { display: flex; align-items: center; gap: 12px; padding: 11px 14px; }
+.rows .bitem .bi { padding: 0; flex: 1; }
+.rows .bitem .tag { position: static; flex: none; }
+.rows .bitem .bm { flex: none; text-align: right; }
+.bitem.ph { opacity: .25; border-style: dashed; }
+.bitem.drag { position: fixed; z-index: 60; pointer-events: none; margin: 0; box-shadow: var(--lift); scale: 1.04; transition: scale .2s cubic-bezier(.3,1.7,.5,1); }
+.bitem:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#homeBtn { padding: 7px 9px; display: grid; place-items: center; }
+.opt-list { display: flex; flex-direction: column; gap: 8px; }
+.opt-list .btn { text-align: left; padding: 13px 14px; }
+.opt-list .btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.opt-list .btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
 /* overview: whole board scaled to fit one screen (for screenshots) */
 #app.overview .bar { display: none; }
 #app.overview #scroller { overflow: hidden; cursor: zoom-out; background-image: radial-gradient(var(--dot) 1.2px, transparent 1.4px); background-size: 22px 22px; }
@@ -182,7 +211,8 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
 
 <div id="app">
   <header>
-    <h1><button type="button" id="boardBtn" aria-label="ボード一覧を開く"><span id="boardName"><span id="boardNameText"></span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5l4 4 4-4"/></svg></span><small id="count"></small></button></h1>
+    <button class="ib" id="homeBtn" aria-label="ボード一覧に戻る"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg></button>
+    <h1><button type="button" id="boardBtn" aria-label="お題とボード名を編集"><span id="boardName"><span id="boardNameText"></span></span><small id="count"></small></button></h1>
     <button class="ib" id="fitBtn" aria-label="全体を1画面に収める">全体</button>
     <button class="ib" id="undo" disabled aria-label="元に戻す">戻す</button>
     <button class="ib" id="menuBtn">メニュー</button>
@@ -195,6 +225,18 @@ header h1 { margin: 0; flex: 1; min-width: 0; display: flex; }
     <input id="newText" type="text" enterkeyhint="enter" placeholder="思いついたことを書いて Enter" maxlength="200">
     <button class="add" type="submit">追加</button>
   </form>
+</div>
+<div id="home" hidden>
+  <header>
+    <h1>ちょいブレ</h1>
+    <button class="ib" id="hView" aria-label="表示を切り替える">リスト</button>
+    <button class="ib" id="hMenu">メニュー</button>
+  </header>
+  <div id="homeScroll">
+    <button type="button" id="hNew">＋ 新しいボード</button>
+    <div class="hbar"><span id="hCount"></span><button type="button" id="hSort">並び順：更新が新しい順</button></div>
+    <div id="hList" class="cards"></div>
+  </div>
 </div>
 <div id="layer"></div>
 <div id="trash" aria-hidden="true">
@@ -233,7 +275,7 @@ function sample() {
   };
 }
 const SAMPLE_NAME = '見本ボード';
-const blank = () => ({ id: uid(), name: '', topic: '', notes: [], groups: [], hint: false, updated: Date.now() });
+const blank = () => ({ id: uid(), name: '', topic: '', notes: [], groups: [], hint: false, created: Date.now(), updated: Date.now() });
 function load() {
   try { const r = localStorage.getItem(KEY); if (r) { const d = JSON.parse(r); if (d && d.boards && d.boards.length) return d; } } catch (e) {}
   // migrate the single board from v1, or start with the example board
@@ -718,24 +760,161 @@ function openExport() {
 
 /* ---------- boards ---------- */
 const fmtDate = (t) => { const d = new Date(t || Date.now()); return (d.getMonth() + 1) + '/' + d.getDate(); };
-function openBoards() {
-  const list = [...DB.boards].sort((a, b) => (b.updated || 0) - (a.updated || 0));
-  let go = null;
-  openSheet(`<h2>ボード</h2>
-    <div class="board-list">${list.map((b) => `<button type="button" class="btn" data-bid="${b.id}" aria-current="${b.id === S.id}">${esc(boardLabel(b))}
-      <small>${b.name && b.topic ? 'お題：' + esc(b.topic) + '<br>' : ''}<span class="meta">${b.notes.length}枚・${fmtDate(b.updated)}更新</span></small></button>`).join('')}</div>
-    <div class="row"><button type="button" class="btn primary" id="bNew">＋ 新しいボード</button></div>`,
-  () => {
-    sheet.querySelectorAll('[data-bid]').forEach((el) => el.addEventListener('click', () => { go = el.dataset.bid; closeSheet(); }));
-    $('#bNew').addEventListener('click', () => { go = 'new'; closeSheet(); });
-  },
-  () => {
-    if (go === 'new') {
-      const b = blank(); DB.boards.push(b); switchBoard(b.id); fx.add();
-      setTimeout(() => openBoardEdit(true), 300);
-    } else if (go && go !== S.id) { switchBoard(go); buzz(6); toast(boardLabel(S) + ' を開きました'); }
+/* ---------- home: board list ---------- */
+const home = $('#home'), hList = $('#hList');
+const SORTS = { updated: '更新が新しい順', created: '作った順', manual: '自由に並べる' };
+const isEmptyBoard = (b) => !b.notes.length && !b.name && !b.topic;
+function sortedBoards() {
+  const list = [...DB.boards];
+  const sort = DB.sort || 'updated';
+  if (sort === 'updated') list.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  else if (sort === 'created') list.sort((a, b) => (b.created || b.updated || 0) - (a.created || a.updated || 0));
+  return list; // manual: the stored order
+}
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function drawThumb(cv, b) {
+  const W = cv.clientWidth || 160, H = cv.clientHeight || 120, dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr;
+  const c = cv.getContext('2d'); c.scale(dpr, dpr);
+  const items = [];
+  b.groups.forEach((g) => { const k = g.collapsed ? 0 : g.order.length; items.push({ x: g.x, y: g.y, w: 184, h: 40 + k * 44, g }); });
+  b.notes.filter((n) => !n.gid).forEach((n) => items.push({ x: n.x, y: n.y, w: 136, h: 64, n }));
+  if (!items.length) {
+    c.fillStyle = cssVar('--muted'); c.font = '12px ' + cssVar('--f-body'); c.textAlign = 'center';
+    c.fillText('付箋なし', W / 2, H / 2 + 4); return;
+  }
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  items.forEach((it) => { x0 = Math.min(x0, it.x); y0 = Math.min(y0, it.y); x1 = Math.max(x1, it.x + it.w); y1 = Math.max(y1, it.y + it.h); });
+  const pad = 10, k = Math.min((W - pad * 2) / (x1 - x0), (H - pad * 2) / (y1 - y0), 0.5);
+  const ox = (W - (x1 - x0) * k) / 2 - x0 * k, oy = (H - (y1 - y0) * k) / 2 - y0 * k;
+  const col = (n) => cssVar('--n-' + (n.color || 'y'));
+  const rr = (x, y, w, h, r) => { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); };
+  items.forEach((it) => {
+    const x = ox + it.x * k, y = oy + it.y * k, w = it.w * k, h = it.h * k;
+    if (it.g) {
+      rr(x, y, w, h, 16 * k); c.fillStyle = cssVar('--chrome'); c.fill(); c.strokeStyle = cssVar('--line'); c.lineWidth = 1; c.stroke();
+      if (!it.g.collapsed) it.g.order.forEach((id, i) => { const n = b.notes.find((m) => m.id === id); if (!n) return; rr(x + 6 * k, y + (36 + i * 44) * k, w - 12 * k, 38 * k, 4 * k); c.fillStyle = col(n); c.fill(); });
+    } else { rr(x, y, w, h, 4 * k); c.fillStyle = col(it.n); c.fill(); }
   });
 }
+function renderHome() {
+  // untouched empty boards (no notes, name or prompt) are tidied away
+  const before = DB.boards.length;
+  DB.boards = DB.boards.filter((b) => !isEmptyBoard(b));
+  if (DB.boards.length !== before) save();
+  const view = DB.view || 'card', sort = DB.sort || 'updated';
+  hList.className = view === 'card' ? 'cards' : 'rows';
+  $('#hView').textContent = view === 'card' ? 'リスト' : 'カード';
+  $('#hView').setAttribute('aria-label', view === 'card' ? 'リスト表示にする' : 'カード表示にする');
+  $('#hSort').textContent = '並び順：' + SORTS[sort];
+  $('#hCount').textContent = DB.boards.length ? DB.boards.length + 'ボード' + (sort === 'manual' ? '・長押しで並べ替え' : '') : 'まだボードがありません';
+  hList.textContent = '';
+  sortedBoards().forEach((b) => {
+    const el = document.createElement('button'); el.type = 'button'; el.className = 'bitem'; el.dataset.bid = b.id;
+    const sampleTag = b.name === SAMPLE_NAME ? '<span class="tag">見本</span>' : '';
+    const label = b.name === SAMPLE_NAME ? (b.topic || boardLabel(b)) : boardLabel(b);
+    const sub = b.name && b.topic && b.name !== SAMPLE_NAME ? `<span class="bt">お題：${esc(b.topic)}</span>` : '';
+    const meta = `<span class="bm">${b.notes.length}枚・${fmtDate(b.updated)}</span>`;
+    el.innerHTML = view === 'card'
+      ? `<canvas class="th" aria-hidden="true"></canvas>${sampleTag}<span class="bi"><span class="bn">${esc(label)}</span>${sub}${meta}</span>`
+      : `${sampleTag}<span class="bi"><span class="bn">${esc(label)}</span>${sub}</span>${meta}`;
+    hList.appendChild(el);
+  });
+  if (view === 'card') requestAnimationFrame(() => hList.querySelectorAll('.bitem').forEach((el) => { const b = DB.boards.find((x) => x.id === el.dataset.bid); const cv = el.querySelector('canvas'); if (b && cv) drawThumb(cv, b); }));
+}
+function showHome() {
+  closeSheet(); exitOverview();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  renderHome(); home.hidden = false; app.setAttribute('aria-hidden', 'true');
+}
+function openBoard(id) {
+  switchBoard(id); home.hidden = true; app.removeAttribute('aria-hidden');
+}
+$('#hNew').addEventListener('click', () => {
+  const b = blank(); DB.boards.unshift(b); openBoard(b.id); fx.add();
+  setTimeout(() => openBoardEdit(true), 250);
+});
+$('#hView').addEventListener('click', () => { DB.view = (DB.view || 'card') === 'card' ? 'list' : 'card'; save(); renderHome(); buzz(6); });
+$('#hSort').addEventListener('click', () => {
+  let pick = null; const cur = DB.sort || 'updated';
+  const hints = { updated: '最近さわったボードが上に来ます', created: '新しく作ったボードが上に来ます', manual: 'ボードを長押しして好きな位置へ動かせます' };
+  openSheet(`<h2>並び順</h2><div class="opt-list">${Object.keys(SORTS).map((k) => `<button type="button" class="btn" data-sort="${k}" aria-pressed="${k === cur}">${SORTS[k]}<small>${hints[k]}</small></button>`).join('')}</div>`,
+    () => sheet.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => { pick = b.dataset.sort; closeSheet(); })),
+    () => { if (pick && pick !== cur) { setSort(pick); renderHome(); buzz(6); } });
+});
+function setSort(k) {
+  // entering manual keeps whatever order is on screen now
+  if (k === 'manual') DB.boards = sortedBoards();
+  DB.sort = k; save();
+}
+$('#hMenu').addEventListener('click', () => {
+  let after = null;
+  openSheet(`<h2>メニュー</h2><div class="menu-list">
+    <button type="button" class="btn" id="hmBackup">バックアップ<small>全ボードを書き出す・読み込む（機種変更や念のための保存に）</small></button>
+    <button type="button" class="btn" id="hmSound">効果音: ${DB.sound ? 'オン' : 'オフ'}<small>振動は対応端末で常に有効です</small></button></div>`,
+  () => {
+    $('#hmBackup').addEventListener('click', () => { after = 'backup'; closeSheet(); });
+    $('#hmSound').addEventListener('click', (e) => { DB.sound = !DB.sound; save(); e.currentTarget.firstChild.textContent = '効果音: ' + (DB.sound ? 'オン' : 'オフ'); fx.add(); });
+  },
+  () => { if (after === 'backup') setTimeout(openBackup, 280); });
+});
+
+/* long-press a board to drag it into a new place */
+let HD = null;
+hList.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.bitem'); if (!el || HD || e.button > 0) return;
+  HD = { el, id: el.dataset.bid, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, pid: e.pointerId, on: false, moved: false };
+  HD.t = setTimeout(startHomeDrag, 380);
+});
+function startHomeDrag() {
+  if (!HD) return;
+  if ((DB.sort || 'updated') !== 'manual') { setSort('manual'); renderHome(); HD.el = hList.querySelector(`[data-bid="${HD.id}"]`); toast('並び順を「自由に並べる」にしました'); }
+  const r = HD.el.getBoundingClientRect();
+  HD.ox = HD.x - r.left; HD.oy = HD.y - r.top; HD.on = true;
+  const ph = HD.el.cloneNode(true); ph.classList.add('ph'); ph.removeAttribute('data-bid');
+  const pc = ph.querySelector('canvas'), oc = HD.el.querySelector('canvas'); if (pc && oc) { pc.width = oc.width; pc.height = oc.height; pc.getContext('2d').drawImage(oc, 0, 0); }
+  HD.el.parentNode.insertBefore(ph, HD.el); HD.ph = ph;
+  HD.el.style.width = r.width + 'px'; HD.el.style.height = r.height + 'px';
+  HD.el.style.left = r.left + 'px'; HD.el.style.top = r.top + 'px';
+  document.body.appendChild(HD.el); HD.el.classList.add('drag');
+  fx.lift(); homeAutoScroll();
+}
+window.addEventListener('pointermove', (e) => {
+  if (!HD || e.pointerId !== HD.pid) return;
+  HD.x = e.clientX; HD.y = e.clientY;
+  if (!HD.on) { if (Math.hypot(HD.x - HD.sx, HD.y - HD.sy) > 8) { clearTimeout(HD.t); HD = null; } return; }
+  e.preventDefault(); moveHomeDrag();
+}, { passive: false });
+window.addEventListener('touchmove', (e) => { if (HD && HD.on) e.preventDefault(); }, { passive: false });
+function moveHomeDrag() {
+  HD.el.style.left = (HD.x - HD.ox) + 'px'; HD.el.style.top = (HD.y - HD.oy) + 'px';
+  const over = document.elementFromPoint(HD.x, HD.y);
+  const tgt = over && over.closest('#hList .bitem');
+  if (!tgt || tgt === HD.ph) return;
+  const kids = [...hList.children], a = kids.indexOf(HD.ph), bI = kids.indexOf(tgt);
+  hList.insertBefore(HD.ph, a < bI ? tgt.nextSibling : tgt); HD.moved = true; fx.hover();
+}
+function homeAutoScroll() {
+  if (!HD || !HD.on) return;
+  const sc = $('#homeScroll'), r = sc.getBoundingClientRect(), E = 60;
+  let v = 0; if (HD.y < r.top + E) v = -10; else if (HD.y > r.bottom - E) v = 10;
+  if (v) { sc.scrollBy(0, v); moveHomeDrag(); }
+  requestAnimationFrame(homeAutoScroll);
+}
+function endHomeDrag(e) {
+  if (!HD || e.pointerId !== HD.pid) return;
+  const d = HD; HD = null; clearTimeout(d.t);
+  if (!d.on) { if (e.type === 'pointerup') openBoard(d.id); return; }
+  const ids = [...hList.children].map((el) => el === d.ph ? d.id : el.dataset.bid).filter(Boolean);
+  DB.boards = ids.map((id) => DB.boards.find((b) => b.id === id)).filter(Boolean).concat(DB.boards.filter((b) => !ids.includes(b.id)));
+  save(); d.el.remove(); renderHome(); fx.drop();
+  const el = hList.querySelector(`[data-bid="${d.id}"]`); if (el) { el.classList.add('land'); el.addEventListener('animationend', () => el.classList.remove('land'), { once: true }); }
+}
+window.addEventListener('pointerup', endHomeDrag);
+window.addEventListener('pointercancel', endHomeDrag);
+hList.addEventListener('contextmenu', (e) => e.preventDefault());
+hList.addEventListener('keydown', (e) => { const el = e.target.closest('.bitem'); if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openBoard(el.dataset.bid); } });
+
 function openBoardEdit(fresh) {
   let del = false, armed = null;
   openSheet(`<h2>${fresh ? '新しいボード' : 'お題とボード名'}</h2>
@@ -760,14 +939,14 @@ function openBoardEdit(fresh) {
       const label = boardLabel(S);
       DB.boards = DB.boards.filter((b) => b.id !== S.id);
       if (!DB.boards.length) DB.boards.push(blank());
-      const next = [...DB.boards].sort((a, b) => (b.updated || 0) - (a.updated || 0))[0];
-      S = next; switchBoard(next.id); fx.trash(); toast(label + ' を削除しました'); return;
+      S = DB.boards[0]; hist = []; save(); showHome(); fx.trash(); toast(label + ' を削除しました'); return;
     }
     const topic = $('#bTopic').value.replace(/\s*\n\s*/g, ' ').trim(), name = $('#bName').value.trim();
     if (topic !== (S.topic || '') || name !== (S.name || '')) { S.topic = topic; S.name = name; S.updated = Date.now(); save(); render(); buzz(6); }
   });
 }
-$('#boardBtn').addEventListener('click', openBoards);
+$('#boardBtn').addEventListener('click', () => openBoardEdit(false));
+$('#homeBtn').addEventListener('click', () => { showHome(); buzz(6); });
 $('#topic').addEventListener('click', () => openBoardEdit(false));
 
 /* ---------- backup ---------- */
@@ -857,6 +1036,7 @@ window.addEventListener('resize', () => { if (ovOn) fitOverview(); else sizeBoar
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 
 render();
+showHome();
 
 /* ---------- install as an app (only on the real https site) ---------- */
 if (location.protocol === 'https:' && 'serviceWorker' in navigator && !/claude|claudeusercontent/.test(location.hostname)) {
