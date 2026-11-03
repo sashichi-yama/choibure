@@ -1047,7 +1047,10 @@ showHome();
 
 /* ---------- install as an app (only on the real https site) ---------- */
 if (location.protocol === 'https:' && 'serviceWorker' in navigator && !/claude|claudeusercontent/.test(location.hostname)) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  // when a newer version takes over, reload once so it shows right away
+  const hadController = !!navigator.serviceWorker.controller; let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
+  navigator.serviceWorker.register('sw.js').then((r) => r.update()).catch(() => {});
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
 }
 })();
