@@ -144,6 +144,8 @@ header .ib.ic { margin: -4px -3px; }
 .gb .note { position: relative; width: 100%; min-height: 0; font-size: 14px; padding: 8px 10px 9px; left: auto; top: auto; }
 .group.collapsed .gb { display: none; }
 .group.collapsed { padding-bottom: 4px; box-shadow: 4px 4px 0 -1px var(--group-bg), 4px 4px 0 0 var(--group-line), 8px 8px 0 -1px var(--group-bg), 8px 8px 0 0 var(--group-line); }
+.group .group { position: relative; left: auto; top: auto; width: 100%; padding: 2px 5px 6px; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.group.big { width: 224px; border-width: 2px; }
 .gb .slot { height: 6px; margin: -3px 0; border-radius: 3px; background: var(--accent); }
 
 .target { outline: 3px solid var(--target); outline-offset: 3px; }
@@ -185,6 +187,8 @@ header .ib.ic { margin: -4px -3px; }
 #toast { position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); translate: -50% -20px; opacity: 0; z-index: 40; pointer-events: none;
   background: var(--ink); color: var(--board); padding: 8px 14px; border-radius: 999px; font-size: 13px; transition: opacity .2s, translate .25s cubic-bezier(.3,1.5,.5,1); }
 #toast.show { opacity: 1; translate: -50% 0; }
+#toast.act { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 6px 8px 6px 16px; }
+#toast.act button { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; padding: 4px 8px; }
 
 #scrim { position: fixed; inset: 0; background: rgba(10,18,28,.38); z-index: 50; opacity: 0; transition: opacity .2s; }
 #scrim.show { opacity: 1; }
@@ -261,6 +265,7 @@ const COLOR_NAMES = { y: '黄', p: 'ピンク', m: 'ミント', s: '水色', l: 
 const $ = (s) => document.querySelector(s);
 const scroller = $('#scroller'), board = $('#board'), layer = $('#layer'), trash = $('#trash');
 const uid = () => Math.random().toString(36).slice(2, 10);
+const TOP = ':scope > .group, :scope > .note.free'; // items placed directly on the board (not inside a group)
 
 /* ---------- state ---------- */
 function sample() {
@@ -335,14 +340,29 @@ function switchBoard(id) {
   exitOverview(); S = b; hist = []; future = []; syncHist(); save(); render(); scroller.scrollTo(0, 0);
 }
 function cleanup() {
-  const ids = new Set(S.notes.map((n) => n.id));
-  S.groups.forEach((g) => { g.order = g.order.filter((id) => ids.has(id)); });
-  S.groups = S.groups.filter((g) => g.order.length > 0);
-  const gids = new Set(S.groups.map((g) => g.id));
-  S.notes.forEach((n) => { if (n.gid && !gids.has(n.gid)) n.gid = null; });
+  // a group's order is the truth: it lists its notes and (for a big group) its child groups
+  for (let pass = 0; pass < 4; pass++) {
+    const nids = new Set(S.notes.map((n) => n.id)), gids = new Set(S.groups.map((g) => g.id));
+    S.groups.forEach((g) => { g.order = g.order.filter((id) => nids.has(id) || (gids.has(id) && id !== g.id)); });
+    const before = S.groups.length;
+    S.groups = S.groups.filter((g) => g.order.length > 0);
+    if (S.groups.length === before) break;
+  }
+  const parentOf = new Map();
+  S.groups.forEach((g) => g.order.forEach((id) => parentOf.set(id, g.id)));
+  S.groups.forEach((g) => { g.pid = parentOf.get(g.id) || null; });
+  S.notes.forEach((n) => { n.gid = parentOf.get(n.id) || null; });
 }
 const note = (id) => S.notes.find((n) => n.id === id);
 const group = (id) => S.groups.find((g) => g.id === id);
+const isBig = (g) => g.order.some((id) => group(id));
+// every id inside a group: its child groups too (for deleting a group with what it holds)
+const familyOf = (g) => new Set([g.id, ...g.order.filter((id) => group(id))]);
+function deleteGroup(g) {
+  const fam = familyOf(g);
+  S.notes = S.notes.filter((n) => !fam.has(n.gid));
+  S.groups = S.groups.filter((x) => !fam.has(x.id));
+}
 
 /* ---------- theme: auto (follow iPhone) / light / dark ---------- */
 const THEMES = { auto: '自動（iPhoneの設定）', light: 'ライト', dark: 'ダーク' };
@@ -399,6 +419,25 @@ function noteEl(n, free) {
   if (free) { el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; }
   return el;
 }
+function groupEl(g) {
+  const big = isBig(g);
+  const el = document.createElement('div');
+  el.className = 'group' + (g.collapsed ? ' collapsed' : '') + (big ? ' big' : '');
+  el.dataset.id = g.id; el.dataset.kind = 'group';
+  if (!g.pid) { el.style.left = g.x + 'px'; el.style.top = g.y + 'px'; }
+  const head = document.createElement('div'); head.className = 'gh';
+  const t = document.createElement('span'); t.className = 'gt' + (g.title ? '' : ' empty'); t.textContent = g.title || '名前をつける';
+  const kids = g.order.map((id) => group(id)).filter(Boolean);
+  const total = g.order.reduce((a, id) => { const c = group(id); return a + (c ? c.order.length : note(id) ? 1 : 0); }, 0);
+  const c = document.createElement('span'); c.className = 'gc'; c.textContent = (kids.length ? kids.length + '組・' : '') + total + '枚';
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'gx'; b.dataset.act = 'collapse'; b.dataset.id = g.id;
+  b.setAttribute('aria-label', g.collapsed ? '広げる' : '畳む'); b.innerHTML = chevron;
+  head.append(t, c, b);
+  const body = document.createElement('div'); body.className = 'gb';
+  g.order.forEach((id) => { const n = note(id); if (n) body.appendChild(noteEl(n, false)); else { const k = group(id); if (k) body.appendChild(groupEl(k)); } });
+  el.append(head, body);
+  return el;
+}
 function render() {
   board.textContent = '';
   if (S.hint) {
@@ -406,22 +445,7 @@ function render() {
     h.innerHTML = '<div>見本のボードです。<b>付箋を別の付箋に重ねる</b>とグループに、<b>グループの外へ出す</b>と解除。左上のボード名から自分のボードに戻れます。</div><button type="button" data-act="hint">閉じる</button>';
     board.appendChild(h);
   }
-  for (const g of S.groups) {
-    const el = document.createElement('div');
-    el.className = 'group' + (g.collapsed ? ' collapsed' : '');
-    el.dataset.id = g.id; el.dataset.kind = 'group';
-    el.style.left = g.x + 'px'; el.style.top = g.y + 'px';
-    const head = document.createElement('div'); head.className = 'gh';
-    const t = document.createElement('span'); t.className = 'gt' + (g.title ? '' : ' empty'); t.textContent = g.title || '名前をつける';
-    const c = document.createElement('span'); c.className = 'gc'; c.textContent = g.order.length + '枚';
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'gx'; b.dataset.act = 'collapse'; b.dataset.id = g.id;
-    b.setAttribute('aria-label', g.collapsed ? '広げる' : '畳む'); b.innerHTML = chevron;
-    head.append(t, c, b);
-    const body = document.createElement('div'); body.className = 'gb';
-    g.order.forEach((id) => { const n = note(id); if (n) body.appendChild(noteEl(n, false)); });
-    el.append(head, body);
-    board.appendChild(el);
-  }
+  for (const g of S.groups) if (!g.pid) board.appendChild(groupEl(g));
   for (const n of S.notes) if (!n.gid) board.appendChild(noteEl(n, true));
   if (!S.notes.length) {
     const m = document.createElement('div'); m.className = 'empty-msg';
@@ -436,7 +460,7 @@ function render() {
 }
 function sizeBoard() {
   let w = 0, h = 0;
-  board.querySelectorAll('.group, .note.free').forEach((el) => {
+  board.querySelectorAll(TOP).forEach((el) => {
     w = Math.max(w, el.offsetLeft + el.offsetWidth); h = Math.max(h, el.offsetTop + el.offsetHeight);
   });
   board.style.width = Math.max(scroller.clientWidth, w + 240) + 'px';
@@ -451,14 +475,21 @@ function flash(id, cls) {
 }
 let toastT;
 function toast(msg) {
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  const t = $('#toast'); t.textContent = msg; t.classList.remove('act'); t.classList.add('show');
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1600);
+}
+function undoToast(msg, fn) {
+  const t = $('#toast'); t.textContent = msg;
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = '元に戻す'; t.appendChild(b);
+  b.addEventListener('click', () => { fn(); buzz(6); toast('元に戻しました'); });
+  t.classList.add('show', 'act');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show', 'act'), 5000);
 }
 
 /* ---------- adding ---------- */
 function boardRects() {
   // offset* ignores the pop-in animation's scale, so freshly added notes count at full size
-  return [...board.querySelectorAll('.group, .note.free')].map((el) => ({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }));
+  return [...board.querySelectorAll(TOP)].map((el) => ({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }));
 }
 function freeSpot() {
   const rects = boardRects();
@@ -514,7 +545,7 @@ window.addEventListener('pointercancel', end);
 function startDrag() {
   const r = P.el.getBoundingClientRect();
   P.ox = P.sx - r.left; P.oy = P.sy - r.top; P.drag = true;
-  P.from = P.kind === 'note' ? note(P.id).gid : null;
+  P.from = P.kind === 'note' ? note(P.id).gid : group(P.id).pid;
   P.el.style.width = r.width + 'px';
   P.el.style.left = '0px'; P.el.style.top = '0px';
   P.el.style.translate = `${r.left}px ${r.top}px`;
@@ -539,11 +570,16 @@ function detect() {
     for (const el of els) {
       if (inside(el.getBoundingClientRect(), P.cx, P.cy)) { tgt = { kind: el.dataset.kind, id: el.dataset.id, el }; break; }
     }
+    // a group dropped on a group inside a big group goes to that big group (groups nest two deep at most)
+    if (tgt && tgt.kind === 'group' && P.kind === 'group') {
+      const outer = tgt.el.parentElement.closest('.group');
+      if (outer) tgt = { kind: 'group', id: outer.dataset.id, el: outer };
+    }
     if (tgt && tgt.kind === 'group') {
-      const kids = [...tgt.el.querySelectorAll('.gb > .note')];
+      const kids = [...tgt.el.querySelector(':scope > .gb').children].filter((k) => !k.classList.contains('slot'));
       let idx = kids.length;
       for (let i = 0; i < kids.length; i++) { const r = kids[i].getBoundingClientRect(); if (P.cy < r.top + r.height / 2) { idx = i; break; } }
-      tgt.idx = P.kind === 'note' && !tgt.el.classList.contains('collapsed') ? idx : null;
+      tgt.idx = (P.kind === 'note' || tgt.el.classList.contains('big')) && !tgt.el.classList.contains('collapsed') ? idx : null;
     }
   }
   const key = (t) => t ? t.kind + (t.id || '') + (t.idx ?? '') : '';
@@ -557,8 +593,9 @@ function detect() {
     tgt.el.classList.add('target');
     if (tgt.idx != null) {
       const s = document.createElement('div'); s.className = 'slot';
-      const kids = tgt.el.querySelectorAll('.gb > .note');
-      tgt.el.querySelector('.gb').insertBefore(s, kids[tgt.idx] || null);
+      const gb = tgt.el.querySelector(':scope > .gb');
+      const kids = [...gb.children].filter((k) => !k.classList.contains('slot'));
+      gb.insertBefore(s, kids[tgt.idx] || null);
     }
   }
   if (tgt && !sameEl) fx.hover();
@@ -597,7 +634,7 @@ function end(e) {
   commit(() => {
     if (t && t.kind === 'trash') {
       if (p.kind === 'note') S.notes = S.notes.filter((n) => n.id !== p.id);
-      else { const g = group(p.id); S.notes = S.notes.filter((n) => !g.order.includes(n.id)); S.groups = S.groups.filter((x) => x !== g); }
+      else deleteGroup(group(p.id));
       sound = 'trash'; landId = null; msg = '削除しました（戻すで取り消し）';
       return;
     }
@@ -618,14 +655,29 @@ function end(e) {
       }
     } else {
       const g = group(p.id);
+      if (g.pid) { const pg = group(g.pid); pg.order = pg.order.filter((id) => id !== g.id); g.pid = null; }
+      const big = isBig(g);
       if (t && t.kind === 'group' && t.id !== g.id) {
-        const tg = group(t.id);
-        g.order.forEach((id) => { note(id).gid = tg.id; tg.order.push(id); });
-        g.order = []; landId = tg.id; gulpId = tg.id; sound = 'join'; msg = 'グループをまとめました';
+        const tg = group(t.id); sound = 'join';
+        if (big && isBig(tg)) { // two big groups become one
+          g.order.forEach((id) => tg.order.push(id)); g.order = [];
+          landId = tg.id; gulpId = tg.id; msg = '大グループをまとめました';
+        } else if (big) { // the group it lands on goes into this big group
+          g.x = tg.x; g.y = tg.y; tg.pid = g.id; g.order.push(tg.id);
+          landId = g.id; gulpId = g.id; msg = '大グループに入れました';
+        } else if (isBig(tg)) { // into a big group
+          if (t.idx == null) tg.order.push(g.id); else tg.order.splice(Math.min(t.idx, tg.order.length), 0, g.id);
+          g.pid = tg.id; landId = g.id; gulpId = tg.id;
+          if (p.from === tg.id) sound = 'drop'; else msg = '大グループに入れました';
+        } else { // two groups make a new big group
+          const bid = uid();
+          S.groups.push({ id: bid, title: '', x: tg.x, y: tg.y, collapsed: false, order: [tg.id, g.id], pid: null });
+          tg.pid = bid; g.pid = bid; landId = bid; gulpId = bid; msg = '大グループにしました';
+        }
       } else if (t && t.kind === 'note') {
         const tn = note(t.id); g.x = tn.x; g.y = tn.y; tn.gid = g.id; g.order.push(tn.id);
         sound = 'join';
-      } else { g.x = bx; g.y = by; }
+      } else { g.x = bx; g.y = by; if (p.from) msg = '大グループから外しました'; }
     }
   });
   fx[sound]();
@@ -700,7 +752,7 @@ function openGroup(id) {
   let act = null;
   openSheet(`<h2>グループ</h2>
     <input type="text" id="gTitle" maxlength="60" placeholder="グループの名前" value="${esc(g.title)}">
-    <div class="row"><button type="button" class="btn" id="gFold">${g.collapsed ? '広げる' : '畳む'}</button><button type="button" class="btn" id="gSplit">グループ解除</button></div>
+    <div class="row"><button type="button" class="btn" id="gFold">${g.collapsed ? '広げる' : '畳む'}</button><button type="button" class="btn" id="gSplit">${isBig(g) ? '大グループを解除' : 'グループ解除'}</button></div>
     <div class="row"><button type="button" class="btn danger" id="gDel">中身ごと削除</button><button type="button" class="btn primary" id="gOk">完了</button></div>`,
   () => {
     const t = $('#gTitle'); if (!g.title) setTimeout(() => t.focus(), 320);
@@ -712,11 +764,21 @@ function openGroup(id) {
   },
   () => {
     const title = $('#gTitle').value.trim();
-    if (act === 'del') { commit(() => { S.notes = S.notes.filter((n) => n.gid !== id); }); fx.trash(); toast('削除しました（戻すで取り消し）'); return; }
+    if (act === 'del') { commit(() => deleteGroup(group(id))); fx.trash(); toast('削除しました（戻すで取り消し）'); return; }
     if (act === 'split') {
+      // what was inside is laid out where the group was: groups stacked in a column, notes two to a row
+      const hOf = (cid) => { const el = board.querySelector(`[data-id="${cid}"]`); return el ? el.offsetHeight : 80; };
       commit(() => {
-        const gg = group(id);
-        gg.order.forEach((nid, i) => { const n = note(nid); n.gid = null; n.x = gg.x + (i % 2) * 148; n.y = gg.y + Math.floor(i / 2) * 86; });
+        const gg = group(id), wasChild = !!gg.pid, pg = wasChild ? group(gg.pid) : null;
+        let x = gg.x, y = gg.y, col = 0, rowH = 0;
+        gg.order.forEach((cid) => {
+          const k = group(cid);
+          if (k) { if (col) { y += rowH + 12; col = 0; rowH = 0; } k.pid = null; k.x = x; k.y = y; y += hOf(cid) + 12; return; }
+          const n = note(cid); if (!n) return;
+          if (wasChild && pg) { n.gid = pg.id; pg.order.push(n.id); return; } // a group inside a big group hands its notes to the big group
+          n.gid = null; n.x = x + col * 148; n.y = y; rowH = Math.max(rowH, hOf(cid)); col++;
+          if (col === 2) { y += rowH + 12; col = 0; rowH = 0; }
+        });
         gg.order = [];
       });
       fx.drop(); toast('グループを解除しました'); return;
@@ -731,20 +793,27 @@ function openGroup(id) {
 /* ---------- menu ---------- */
 function toMarkdown() {
   const lines = [];
-  const head = S.name;
-  if (head) { lines.push('# ' + head.replace(/\n/g, ' ')); lines.push(''); }
-  S.groups.forEach((g) => {
+  const line = (t) => t.replace(/\n/g, ' ');
+  const byPos = (a, b) => (a.y - b.y) || (a.x - b.x);
+  if (S.name) { lines.push('# ' + line(S.name)); lines.push(''); }
+  S.groups.filter((g) => !g.pid).sort(byPos).forEach((g) => {
     lines.push('## ' + (g.title || '名前なし'));
-    g.order.forEach((id) => { const n = note(id); if (n) lines.push('- ' + n.text.replace(/\n/g, ' ')); });
+    g.order.forEach((id) => { const n = note(id); if (n) lines.push('- ' + line(n.text)); });
     lines.push('');
+    g.order.forEach((id) => {
+      const k = group(id); if (!k) return;
+      lines.push('### ' + (k.title || '名前なし'));
+      k.order.forEach((nid) => { const n = note(nid); if (n) lines.push('- ' + line(n.text)); });
+      lines.push('');
+    });
   });
-  const loose = S.notes.filter((n) => !n.gid);
-  if (loose.length) { lines.push('## 未分類'); loose.forEach((n) => lines.push('- ' + n.text.replace(/\n/g, ' '))); }
-  return lines.join('\n').trim() + '\n';
+  const loose = S.notes.filter((n) => !n.gid).sort(byPos);
+  if (loose.length) { lines.push('## 未分類'); loose.forEach((n) => lines.push('- ' + line(n.text))); }
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }
 function arrange() {
   const W = Math.max(scroller.clientWidth, 220), H = Math.max(scroller.clientHeight, 220), colW = 196;
-  const items = [...board.querySelectorAll('.group'), ...board.querySelectorAll('.note.free')].map((el) => ({ id: el.dataset.id, kind: el.dataset.kind, h: el.offsetHeight }));
+  const items = [...board.querySelectorAll(':scope > .group'), ...board.querySelectorAll(':scope > .note.free')].map((el) => ({ id: el.dataset.id, kind: el.dataset.kind, h: el.offsetHeight }));
   // pick the column count that lets the whole board fit one screen at the largest size
   const tallest = (n) => { const h = new Array(n).fill(16); items.forEach((it) => { const c = h.indexOf(Math.min(...h)); h[c] += it.h + 14; }); return Math.max(...h); };
   let cols = Math.max(1, Math.floor((W - 16) / colW)), best = 0;
@@ -757,43 +826,59 @@ function arrange() {
     });
   });
   scroller.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
-  board.querySelectorAll('.group, .note.free').forEach((el) => flash(el.dataset.id, 'land'));
+  board.querySelectorAll(TOP).forEach((el) => flash(el.dataset.id, 'land'));
   fx.join();
 }
 $('#menuBtn').addEventListener('click', () => {
-  let armed = null, after = null;
-  openSheet(`<h2>メニュー</h2>
+  let armedC = null, armedD = null, after = null;
+  const arm = (b, label, armedLabel, timerSet) => {
+    if (b.classList.contains('armed')) return true;
+    b.classList.add('armed'); b.firstChild.textContent = armedLabel; buzz(12);
+    timerSet(setTimeout(() => { b.classList.remove('armed'); b.firstChild.textContent = label; }, 3000));
+    return false;
+  };
+  openSheet(`<h2>このボード</h2>
     <div class="menu-list">
       <button type="button" class="btn" id="mExport">テキストで書き出す<small>見出しと箇条書きでコピーできます</small></button>
-      <button type="button" class="btn" id="mFit">全体を1画面で見る<small>スクショ用。どこかをタップすると戻ります</small></button>
       <button type="button" class="btn" id="mArrange">きれいに並べる<small>全体表示で1画面に収まりやすいように整列します</small></button>
-      <button type="button" class="btn" id="mBackup">バックアップ<small>全ボードを書き出す・読み込む（機種変更や念のための保存に）</small></button>
-      <button type="button" class="btn" id="mSound">効果音: ${DB.sound ? 'オン' : 'オフ'}<small>振動は対応端末で常に有効です</small></button>
-      ${themeBtn('mTheme')}
-      <button type="button" class="btn danger" id="mClear">このボードを空にする<small>「戻す」で取り消せます</small></button>
+      <button type="button" class="btn" id="mRename">ボード名を変える</button>
+      <button type="button" class="btn danger" id="mClear">このボードを空にする<small>「元に戻す」で取り消せます</small></button>
+      <button type="button" class="btn danger" id="mDelete">このボードを削除<small>消したあと数秒は元に戻せます</small></button>
+      <button type="button" class="btn" id="mSettings">設定<small>効果音・テーマ</small></button>
     </div>`,
   () => {
     $('#mExport').addEventListener('click', () => { after = 'export'; closeSheet(); });
     $('#mArrange').addEventListener('click', () => { after = 'arrange'; closeSheet(); });
-    $('#mFit').addEventListener('click', () => { after = 'fit'; closeSheet(); });
-    $('#mBackup').addEventListener('click', () => { after = 'backup'; closeSheet(); });
-    $('#mSound').addEventListener('click', (e) => { DB.sound = !DB.sound; save(); e.currentTarget.firstChild.textContent = '効果音: ' + (DB.sound ? 'オン' : 'オフ'); fx.add(); });
-    bindTheme('mTheme');
+    $('#mRename').addEventListener('click', () => { after = 'rename'; closeSheet(); });
+    $('#mSettings').addEventListener('click', () => { after = 'settings'; closeSheet(); });
     $('#mClear').addEventListener('click', (e) => {
-      const b = e.currentTarget;
-      if (!b.classList.contains('armed')) { b.classList.add('armed'); b.firstChild.textContent = 'もう一度押すと全部消えます'; buzz(12); clearTimeout(armed); armed = setTimeout(() => { b.classList.remove('armed'); b.firstChild.textContent = 'このボードを空にする'; }, 3000); return; }
+      if (!arm(e.currentTarget, 'このボードを空にする', 'もう一度押すと全部消えます', (t) => { clearTimeout(armedC); armedC = t; })) return;
       after = 'clear'; closeSheet();
+    });
+    $('#mDelete').addEventListener('click', (e) => {
+      if (!arm(e.currentTarget, 'このボードを削除', 'もう一度押すと削除します', (t) => { clearTimeout(armedD); armedD = t; })) return;
+      after = 'delete'; closeSheet();
     });
   },
   () => {
-    clearTimeout(armed);
+    clearTimeout(armedC); clearTimeout(armedD);
     if (after === 'clear') { commit(() => { S.notes = []; S.groups = []; S.hint = false; }); fx.trash(); toast('ボードを空にしました'); scroller.scrollTo(0, 0); }
     else if (after === 'arrange') setTimeout(arrange, 280);
     else if (after === 'export') setTimeout(openExport, 280);
-    else if (after === 'fit') setTimeout(enterOverview, 280);
-    else if (after === 'backup') setTimeout(openBackup, 280);
+    else if (after === 'rename') setTimeout(() => openBoardEdit(false), 280);
+    else if (after === 'settings') setTimeout(openSettings, 280);
+    else if (after === 'delete') setTimeout(() => deleteBoard(S.id), 280);
   });
 });
+function openSettings() {
+  openSheet(`<h2>設定</h2><div class="menu-list">
+    <button type="button" class="btn" id="sSound">効果音: ${DB.sound ? 'オン' : 'オフ'}<small>振動は対応端末で常に有効です</small></button>
+    ${themeBtn('sTheme')}</div>`,
+  () => {
+    $('#sSound').addEventListener('click', (e) => { DB.sound = !DB.sound; save(); e.currentTarget.firstChild.textContent = '効果音: ' + (DB.sound ? 'オン' : 'オフ'); fx.add(); });
+    bindTheme('sTheme');
+  });
+}
 function openExport() {
   const md = toMarkdown();
   openSheet(`<h2>テキストで書き出す</h2><textarea class="md" id="mdOut" readonly>${esc(md)}</textarea>
@@ -827,7 +912,9 @@ function drawThumb(cv, b) {
   cv.width = W * dpr; cv.height = H * dpr;
   const c = cv.getContext('2d'); c.scale(dpr, dpr);
   const items = [];
-  b.groups.forEach((g) => { const k = g.collapsed ? 0 : g.order.length; items.push({ x: g.x, y: g.y, w: 184, h: 40 + k * 44, g }); });
+  const gOf = (id) => b.groups.find((x) => x.id === id), nOf = (id) => b.notes.find((m) => m.id === id);
+  const gh = (g) => g.collapsed ? 40 : 40 + g.order.reduce((a, id) => { const k = gOf(id); return a + (k ? gh(k) + 6 : nOf(id) ? 44 : 0); }, 0);
+  b.groups.filter((g) => !g.pid).forEach((g) => { const big = g.order.some((id) => gOf(id)); items.push({ x: g.x, y: g.y, w: big ? 224 : 184, h: gh(g), g }); });
   b.notes.filter((n) => !n.gid).forEach((n) => items.push({ x: n.x, y: n.y, w: 136, h: 64, n }));
   if (!items.length) {
     c.fillStyle = cssVar('--muted'); c.font = '12px ' + cssVar('--f-body'); c.textAlign = 'center';
@@ -843,7 +930,16 @@ function drawThumb(cv, b) {
     const x = ox + it.x * k, y = oy + it.y * k, w = it.w * k, h = it.h * k;
     if (it.g) {
       rr(x, y, w, h, 16 * k); c.fillStyle = cssVar('--chrome'); c.fill(); c.strokeStyle = cssVar('--line'); c.lineWidth = 1; c.stroke();
-      if (!it.g.collapsed) it.g.order.forEach((id, i) => { const n = b.notes.find((m) => m.id === id); if (!n) return; rr(x + 6 * k, y + (36 + i * 44) * k, w - 12 * k, 38 * k, 4 * k); c.fillStyle = col(n); c.fill(); });
+      const inner = (g, gx, gy, gw) => {
+        if (g.collapsed) return;
+        let yy = gy + 36 * k;
+        g.order.forEach((id) => {
+          const n = nOf(id), kg = gOf(id);
+          if (n) { rr(gx + 6 * k, yy, gw - 12 * k, 38 * k, 4 * k); c.fillStyle = col(n); c.fill(); yy += 44 * k; }
+          else if (kg) { const hh = gh(kg) * k; rr(gx + 5 * k, yy, gw - 10 * k, hh, 12 * k); c.strokeStyle = cssVar('--line'); c.lineWidth = 1; c.stroke(); inner(kg, gx + 5 * k, yy, gw - 10 * k); yy += hh + 6 * k; }
+        });
+      };
+      inner(it.g, x, y, w);
     } else { rr(x, y, w, h, 4 * k); c.fillStyle = col(it.n); c.fill(); }
   });
 }
@@ -857,7 +953,7 @@ function renderHome() {
   const hv = $('#hView'); hv.innerHTML = view === 'card' ? `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>` : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>`; hv.setAttribute('aria-label', view === 'card' ? 'リスト表示にする' : 'カード表示にする');
   $('#hView').setAttribute('aria-label', view === 'card' ? 'リスト表示にする' : 'カード表示にする');
   $('#hSort').textContent = '並び順：' + SORTS[sort];
-  $('#hCount').textContent = DB.boards.length ? DB.boards.length + 'ボード' + (sort === 'manual' ? '・長押しで並べ替え' : '') : 'まだボードがありません';
+  $('#hCount').textContent = DB.boards.length ? DB.boards.length + 'ボード・長押しで並べ替え／削除' : 'まだボードがありません';
   hList.textContent = '';
   sortedBoards().forEach((b) => {
     const el = document.createElement('button'); el.type = 'button'; el.className = 'bitem'; el.dataset.bid = b.id;
@@ -900,14 +996,12 @@ $('#hMenu').addEventListener('click', () => {
   let after = null;
   openSheet(`<h2>メニュー</h2><div class="menu-list">
     <button type="button" class="btn" id="hmBackup">バックアップ<small>全ボードを書き出す・読み込む（機種変更や念のための保存に）</small></button>
-    <button type="button" class="btn" id="hmSound">効果音: ${DB.sound ? 'オン' : 'オフ'}<small>振動は対応端末で常に有効です</small></button>
-    ${themeBtn('hmTheme')}</div>`,
+    <button type="button" class="btn" id="hmSettings">設定<small>効果音・テーマ</small></button></div>`,
   () => {
     $('#hmBackup').addEventListener('click', () => { after = 'backup'; closeSheet(); });
-    $('#hmSound').addEventListener('click', (e) => { DB.sound = !DB.sound; save(); e.currentTarget.firstChild.textContent = '効果音: ' + (DB.sound ? 'オン' : 'オフ'); fx.add(); });
-    bindTheme('hmTheme');
+    $('#hmSettings').addEventListener('click', () => { after = 'settings'; closeSheet(); });
   },
-  () => { if (after === 'backup') setTimeout(openBackup, 280); });
+  () => { if (after === 'backup') setTimeout(openBackup, 280); else if (after === 'settings') setTimeout(openSettings, 280); });
 });
 
 /* long-press a board to drag it into a new place */
@@ -919,7 +1013,6 @@ hList.addEventListener('pointerdown', (e) => {
 });
 function startHomeDrag() {
   if (!HD) return;
-  if ((DB.sort || 'updated') !== 'manual') { setSort('manual'); renderHome(); HD.el = hList.querySelector(`[data-bid="${HD.id}"]`); toast('並び順を「自由に並べる」にしました'); }
   const r = HD.el.getBoundingClientRect();
   HD.ox = HD.x - r.left; HD.oy = HD.y - r.top; HD.on = true;
   const ph = HD.el.cloneNode(true); ph.classList.add('ph'); ph.removeAttribute('data-bid');
@@ -928,6 +1021,7 @@ function startHomeDrag() {
   HD.el.style.width = r.width + 'px'; HD.el.style.height = r.height + 'px';
   HD.el.style.left = r.left + 'px'; HD.el.style.top = r.top + 'px';
   document.body.appendChild(HD.el); HD.el.classList.add('drag');
+  trash.classList.add('show');
   fx.lift(); homeAutoScroll();
 }
 window.addEventListener('pointermove', (e) => {
@@ -939,6 +1033,10 @@ window.addEventListener('pointermove', (e) => {
 window.addEventListener('touchmove', (e) => { if (HD && HD.on) e.preventDefault(); }, { passive: false });
 function moveHomeDrag() {
   HD.el.style.left = (HD.x - HD.ox) + 'px'; HD.el.style.top = (HD.y - HD.oy) + 'px';
+  const tr = trash.getBoundingClientRect();
+  const hot = HD.x >= tr.left - 20 && HD.x <= tr.right + 20 && HD.y >= tr.top - 24 && HD.y <= tr.bottom + 16;
+  if (hot !== !!HD.hot) { HD.hot = hot; trash.classList.toggle('hot', hot); HD.el.style.opacity = hot ? '.55' : ''; if (hot) fx.hover(); }
+  if (hot) return;
   const over = document.elementFromPoint(HD.x, HD.y);
   const tgt = over && over.closest('#hList .bitem');
   if (!tgt || tgt === HD.ph) return;
@@ -956,6 +1054,10 @@ function endHomeDrag(e) {
   if (!HD || e.pointerId !== HD.pid) return;
   const d = HD; HD = null; clearTimeout(d.t);
   if (!d.on) { if (e.type === 'pointerup') openBoard(d.id); return; }
+  trash.classList.remove('show', 'hot');
+  if (d.hot) { d.el.remove(); d.ph.remove(); deleteBoard(d.id); return; }
+  if (!d.moved) { d.el.remove(); renderHome(); return; }
+  if ((DB.sort || 'updated') !== 'manual') { setSort('manual'); toast('並び順を「自由に並べる」にしました'); }
   const ids = [...hList.children].map((el) => el === d.ph ? d.id : el.dataset.bid).filter(Boolean);
   DB.boards = ids.map((id) => DB.boards.find((b) => b.id === id)).filter(Boolean).concat(DB.boards.filter((b) => !ids.includes(b.id)));
   save(); d.el.remove(); renderHome(); fx.drop();
@@ -967,30 +1069,26 @@ hList.addEventListener('contextmenu', (e) => e.preventDefault());
 hList.addEventListener('keydown', (e) => { const el = e.target.closest('.bitem'); if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openBoard(el.dataset.bid); } });
 
 function openBoardEdit(fresh) {
-  let del = false, armed = null;
   openSheet(`<h2>${fresh ? '新しいボード' : 'ボード名'}</h2>
     <input type="text" id="bName" aria-label="ボード名" maxlength="60" placeholder="例：このサービスにかける思い" value="${esc(S.name || '')}">
-    <div class="row"><button type="button" class="btn danger" id="bDel">ボードを削除</button><button type="button" class="btn primary" id="bOk">完了</button></div>`,
+    <div class="row"><button type="button" class="btn primary" id="bOk">完了</button></div>`,
   () => {
     const t = $('#bName'); if (fresh || !S.name) setTimeout(() => t.focus(), 320);
     t.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); closeSheet(); } });
     $('#bOk').addEventListener('click', closeSheet);
-    $('#bDel').addEventListener('click', (e) => {
-      const b = e.currentTarget;
-      if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = 'もう一度で削除（戻せません）'; buzz(12); clearTimeout(armed); armed = setTimeout(() => { b.classList.remove('armed'); b.textContent = 'ボードを削除'; }, 3000); return; }
-      del = true; closeSheet();
-    });
   },
   () => {
-    clearTimeout(armed);
-    if (del) {
-      const label = boardLabel(S);
-      DB.boards = DB.boards.filter((b) => b.id !== S.id);
-      if (!DB.boards.length) DB.boards.push(blank());
-      S = DB.boards[0]; hist = []; future = []; syncHist(); save(); showHome(); fx.trash(); toast(label + ' を削除しました'); return;
-    }
     const name = $('#bName').value.trim();
     if (name !== (S.name || '')) { S.name = name; S.updated = Date.now(); save(); render(); buzz(6); }
+  });
+}
+function deleteBoard(id) {
+  const i = DB.boards.findIndex((b) => b.id === id); if (i < 0) return;
+  const b = DB.boards[i]; DB.boards.splice(i, 1);
+  if (S.id === id) { S = DB.boards[0] || blank(); if (!DB.boards.length) DB.boards.push(S); hist = []; future = []; syncHist(); }
+  save(); showHome(); fx.trash();
+  undoToast(boardLabel(b) + ' を削除しました', () => {
+    DB.boards.splice(Math.min(i, DB.boards.length), 0, b); save(); if (!home.hidden) renderHome();
   });
 }
 $('#boardBtn').addEventListener('click', () => openBoardEdit(false));
@@ -1046,7 +1144,7 @@ let ovOn = false;
 function fitOverview() {
   if (!ovOn) return;
   board.style.transform = '';
-  const els = [...board.querySelectorAll('.group, .note.free')];
+  const els = [...board.querySelectorAll(TOP)];
   if (!els.length) return;
   let x0 = Infinity, y0 = Infinity, x1 = 0, y1 = 0;
   els.forEach((el) => { x0 = Math.min(x0, el.offsetLeft); y0 = Math.min(y0, el.offsetTop); x1 = Math.max(x1, el.offsetLeft + el.offsetWidth); y1 = Math.max(y1, el.offsetTop + el.offsetHeight); });
