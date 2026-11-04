@@ -207,8 +207,16 @@ header .ib.ic { margin: -4px -3px; }
 .btn { flex: 1; min-width: 96px; border: 1px solid var(--line); background: var(--board); border-radius: 12px; padding: 12px 10px; font-size: 14px; font-weight: 600; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .btn.danger { color: var(--danger); }
-.btn.danger.armed { background: var(--danger); color: var(--chrome); border-color: var(--danger); }
+.btn.danger.armed { color: var(--chrome); border-color: var(--danger); background: color-mix(in srgb, var(--danger) 55%, var(--board));
+  position: relative; isolation: isolate; overflow: hidden; }
+/* the red drains from right to left over the 3 seconds the confirmation stays armed */
+.btn.danger.armed::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--danger); transform-origin: left center; animation: drain 3s linear forwards; }
+@keyframes drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.menu-list .btn.danger.armed small { color: inherit; opacity: .85; }
 .menu-list { display: flex; flex-direction: column; gap: 8px; }
+.mhead { display: flex; align-items: center; gap: 10px; }
+.mhead h2 { flex: 1; }
+.mhead .ib.ic { border-radius: 50%; background: var(--board); }
 .menu-list .btn { text-align: left; padding: 13px 14px; }
 .menu-list .btn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
 
@@ -837,14 +845,14 @@ $('#menuBtn').addEventListener('click', () => {
     timerSet(setTimeout(() => { b.classList.remove('armed'); b.firstChild.textContent = label; }, 3000));
     return false;
   };
-  openSheet(`<h2>このボード</h2>
+  openSheet(`<div class="mhead"><h2>メニュー</h2>
+      <button type="button" class="ib ic" id="mExport" aria-label="共有"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg></button>
+      <button type="button" class="ib ic" id="mSettings" aria-label="設定"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
     <div class="menu-list">
-      <button type="button" class="btn" id="mExport">テキストで書き出す<small>見出しと箇条書きでコピーできます</small></button>
-      <button type="button" class="btn" id="mArrange">きれいに並べる<small>全体表示で1画面に収まりやすいように整列します</small></button>
-      <button type="button" class="btn" id="mRename">ボード名を変える</button>
-      <button type="button" class="btn danger" id="mClear">このボードを空にする<small>「元に戻す」で取り消せます</small></button>
-      <button type="button" class="btn danger" id="mDelete">このボードを削除<small>消したあと数秒は元に戻せます</small></button>
-      <button type="button" class="btn" id="mSettings">設定<small>効果音・テーマ</small></button>
+      <button type="button" class="btn" id="mArrange">整列<small>全体表示で1画面に収まりやすいように整列します</small></button>
+      <button type="button" class="btn" id="mRename">ボード名の変更</button>
+      <button type="button" class="btn danger" id="mClear">付箋をすべて削除<small>ボード名は残ります。「元に戻す」で取り消せます</small></button>
+      <button type="button" class="btn danger" id="mDelete">ボードの削除<small>消したあと数秒は元に戻せます</small></button>
     </div>`,
   () => {
     $('#mExport').addEventListener('click', () => { after = 'export'; closeSheet(); });
@@ -852,17 +860,17 @@ $('#menuBtn').addEventListener('click', () => {
     $('#mRename').addEventListener('click', () => { after = 'rename'; closeSheet(); });
     $('#mSettings').addEventListener('click', () => { after = 'settings'; closeSheet(); });
     $('#mClear').addEventListener('click', (e) => {
-      if (!arm(e.currentTarget, 'このボードを空にする', 'もう一度押すと全部消えます', (t) => { clearTimeout(armedC); armedC = t; })) return;
+      if (!arm(e.currentTarget, '付箋をすべて削除', 'もう一度押すと全部消えます', (t) => { clearTimeout(armedC); armedC = t; })) return;
       after = 'clear'; closeSheet();
     });
     $('#mDelete').addEventListener('click', (e) => {
-      if (!arm(e.currentTarget, 'このボードを削除', 'もう一度押すと削除します', (t) => { clearTimeout(armedD); armedD = t; })) return;
+      if (!arm(e.currentTarget, 'ボードの削除', 'もう一度押すと削除します', (t) => { clearTimeout(armedD); armedD = t; })) return;
       after = 'delete'; closeSheet();
     });
   },
   () => {
     clearTimeout(armedC); clearTimeout(armedD);
-    if (after === 'clear') { commit(() => { S.notes = []; S.groups = []; S.hint = false; }); fx.trash(); toast('ボードを空にしました'); scroller.scrollTo(0, 0); }
+    if (after === 'clear') { commit(() => { S.notes = []; S.groups = []; S.hint = false; }); fx.trash(); toast('付箋をすべて削除しました'); scroller.scrollTo(0, 0); }
     else if (after === 'arrange') setTimeout(arrange, 280);
     else if (after === 'export') setTimeout(openExport, 280);
     else if (after === 'rename') setTimeout(() => openBoardEdit(false), 280);
@@ -881,7 +889,7 @@ function openSettings() {
 }
 function openExport() {
   const md = toMarkdown();
-  openSheet(`<h2>テキストで書き出す</h2><textarea class="md" id="mdOut" readonly>${esc(md)}</textarea>
+  openSheet(`<h2>共有</h2><p class="fl" style="margin:0">見出しと箇条書きのテキストです。コピーして Notion などに貼れます</p><textarea class="md" id="mdOut" readonly>${esc(md)}</textarea>
     <div class="row"><button type="button" class="btn" id="xClose">閉じる</button><button type="button" class="btn primary" id="xCopy">コピー</button></div>`,
   () => {
     $('#xClose').addEventListener('click', closeSheet);
@@ -994,9 +1002,10 @@ function setSort(k) {
 }
 $('#hMenu').addEventListener('click', () => {
   let after = null;
-  openSheet(`<h2>メニュー</h2><div class="menu-list">
-    <button type="button" class="btn" id="hmBackup">バックアップ<small>全ボードを書き出す・読み込む（機種変更や念のための保存に）</small></button>
-    <button type="button" class="btn" id="hmSettings">設定<small>効果音・テーマ</small></button></div>`,
+  openSheet(`<div class="mhead"><h2>メニュー</h2>
+      <button type="button" class="ib ic" id="hmSettings" aria-label="設定"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
+    <div class="menu-list">
+    <button type="button" class="btn" id="hmBackup">バックアップ<small>全ボードを書き出す・読み込む（機種変更や念のための保存に）</small></button></div>`,
   () => {
     $('#hmBackup').addEventListener('click', () => { after = 'backup'; closeSheet(); });
     $('#hmSettings').addEventListener('click', () => { after = 'settings'; closeSheet(); });
